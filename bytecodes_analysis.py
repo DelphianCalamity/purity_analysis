@@ -1,7 +1,8 @@
 import sys
 import dis
 
-class FunctionInfo():
+
+class FunctionInfo:
     def __init__(self):
         self.pure = 1
         self.mutated_objects = set()
@@ -96,15 +97,6 @@ def analyze(code):
     return output
 
 
-['g': locals, globals , "foo": locals, globals, cellvars..]
-
-'foo':
-STORENAME: x
-x
-
-functions_visiitted["g"]
-functions_visiitted["foo"]
-
 if __name__ == '__main__':
     functions_visited = {}
     locals_ = []
@@ -112,13 +104,3 @@ if __name__ == '__main__':
 
     # sys.settrace(trace_lines)
     sys.setprofile(trace_calls)
-
-
-    def foo(x, y):
-        z = x + y
-        x = 3
-        # print(z)
-
-    x = 1
-    y = 4
-    foo(x, y)
