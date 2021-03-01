@@ -97,7 +97,7 @@ def analyze(code):
                     for function_variables in variables_stack[::-1]:
                         if function_variables.find_in_locals(var):  # Trace the origin of this variable
                             break
-                        else: # current function is impure
+                        else:  # current function is impure
                             functions_visited[function_variables.func_name].pure = 0
                             functions_visited[function_variables.func_name].mutates(var)
 
@@ -114,8 +114,6 @@ def analyze(code):
             # print("bytecode: ", frame.f_code.co_code[frame.f_lasti + 1])
             # print(dis.opname[frame.f_code.co_code[frame.f_lasti]])
             print("\n\n\n")
-
-
 
     functions_visited = {}
     variables_stack = []        # Treat as a stack
@@ -155,4 +153,4 @@ def foo():
 foo()
 """
 
-    analyze(source2)
+    analyze(source1)
