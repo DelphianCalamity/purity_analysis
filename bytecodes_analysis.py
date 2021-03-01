@@ -12,21 +12,25 @@ class FunctionInfo:
 class FunctionVariables:
     def __init__(self, func_name):
         self.func_name = func_name
-        self.locals = set()
-        self.globals = set()
+        self.locals = ()
+        self.globals = ()
 
     def add_locals(self, locals):
-        self.locals.add(locals)
+        self.locals += locals
 
     def add_globals(self, globals):
-        self.globals.add(globals)
+        self.globals += (globals)
 
     def find_in_locals(self, var):
-        return var in self.locals
+        print(var)
+        print(self.locals)
+        return (var in self.locals)
 
     def find_in_globals(self, var):
-        return var in self.globals
+        return (var in self.globals)
 
+    def print(self):
+        print("func:", self.func_name, ", locals:", self.locals, ", globals:", self.globals)
 
 
 def analyze(code):
@@ -81,14 +85,14 @@ def analyze(code):
             # Add frame's variables in the stack
             variables_stack.append(FunctionVariables(func_name))
             variables_stack[-1].add_locals(co.co_varnames + co.co_cellvars)
-            variables_stack[-1].add_globals(co.co_names)
-
+            variables_stack[-1].add_globals(co.co_names + co.co_freevars)
+            for i in variables_stack:
+                i.print()
             # Track the STORE bytecodes
             bytecodes = dis.get_instructions(frame.f_code)
             for bytecode in bytecodes:
-                if bytecode.opname == "STORE_GLOBAL":
+                if bytecode.opname in {"STORE_GLOBAL", "STORE_DEREF"}:  # Ignore STORE_FAST as it writes locals
                     print("Bytecode:", bytecode)
-
                     var = bytecode.argval
                     for function_variables in variables_stack[::-1]:
                         if function_variables.find_in_locals(var):  # Trace the origin of this variable
@@ -130,16 +134,25 @@ def analyze(code):
 
 if __name__ == '__main__':
 
-    source = """ 
+    source1 = """ 
 def foo():
     def bar():  
         global x, y
         x = y = 1 
-
     bar()
-
 x = y = 0
 foo()
 """
 
-    analyze(source)
+    source2 = """ 
+def foo():
+    x = y = 0
+    def bar():
+        nonlocal x,y
+        x = y = 1 
+    bar()
+
+foo()
+"""
+
+    analyze(source2)
