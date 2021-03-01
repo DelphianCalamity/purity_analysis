@@ -80,7 +80,7 @@ foo()
         source = """
 def foo():
     def bar():  
-        nonlocal x, y
+        global x, y
         x = y = 1 
 
     bar()
