@@ -13,7 +13,7 @@ foo(1)
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': True, 'mutated_objects': ['y']},
+            'foo': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -26,7 +26,7 @@ foo(0)
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': True, 'mutated_objects': ['x']},
+            'foo': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -40,7 +40,7 @@ foo()
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': True, 'mutated_objects': ['y']},
+            'foo': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -54,7 +54,7 @@ foo()
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': True, 'mutated_objects': ['x']},
+            'foo': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -62,15 +62,32 @@ foo()
         # write global var
         source = """
 def foo():
-    global num
-    num = 1
+    global x
+    x = 1
 
-num = 0
+x = 0
 foo()
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': False, 'mutated_objects': ['num']},
+            'foo': {'pure': False, 'mutated_objects': {'x'}},
+        }
+        self.assertEqual(received_out, expected_out)
+
+        # write global var on first call
+        source = """
+def foo(n):
+    if n is True:
+        global x
+        x = 1
+
+x = 0
+foo(True)
+foo(False)
+"""
+        received_out = analyze(source)
+        expected_out = {
+            'foo': {'pure': False, 'mutated_objects': {'x'}},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -88,7 +105,7 @@ foo(Person())
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': True, 'mutated_objects': ['x']},
+            'foo': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -108,7 +125,7 @@ foo(Person())
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': True, 'mutated_objects': ['x']},
+            'foo': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -121,7 +138,7 @@ foo([1, 2, 3])
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': True, 'mutated_objects': ['x']},
+            'foo': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -139,7 +156,7 @@ foo(Person())
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': False, 'mutated_objects': ['person']},
+            'foo': {'pure': False, 'mutated_objects': {'person'}},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -159,7 +176,7 @@ foo(Person())
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': False, 'mutated_objects': ['person']},
+            'foo': {'pure': False, 'mutated_objects': {'person'}},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -172,7 +189,7 @@ foo([1, 2, 3])
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': False, 'mutated_objects': ['nums']},
+            'foo': {'pure': False, 'mutated_objects': {'nums'}},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -185,7 +202,7 @@ foo([1, 2, 3])
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': False, 'mutated_objects': ['nums']},
+            'foo': {'pure': False, 'mutated_objects': {'nums'}},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -202,8 +219,8 @@ foo()
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': True, 'mutated_objects': []},
-            'bar': {'pure': True, 'mutated_objects': []},
+            'foo': {'pure': True, 'mutated_objects': set()},
+            'bar': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -224,8 +241,8 @@ foo()
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': True, 'mutated_objects': ['person1']},
-            'bar': {'pure': False, 'mutated_objects': ['person2']},
+            'foo': {'pure': True, 'mutated_objects': set()},
+            'bar': {'pure': False, 'mutated_objects': {'person2'}},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -245,8 +262,8 @@ foo()
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': False, 'mutated_objects': ['x']},
-            'bar': {'pure': True, 'mutated_objects': []},
+            'foo': {'pure': False, 'mutated_objects': {'x'}},
+            'bar': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -264,8 +281,8 @@ foo()
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': False, 'mutated_objects': ['x']},
-            'bar': {'pure': False, 'mutated_objects': ['x']},
+            'foo': {'pure': False, 'mutated_objects': {'x'}},
+            'bar': {'pure': False, 'mutated_objects': {'x'}},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -282,7 +299,7 @@ foo(5)
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': True, 'mutated_objects': []},
+            'foo': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -301,7 +318,7 @@ foo(5)
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': False, 'mutated_objects': ['x']},
+            'foo': {'pure': False, 'mutated_objects': {'x'}},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -319,8 +336,8 @@ foo()
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': True, 'mutated_objects': ['z']},
-            'bar': {'pure': True, 'mutated_objects': ['z']},
+            'foo': {'pure': True, 'mutated_objects': set()},
+            'bar': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -337,8 +354,8 @@ foo()
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': 1, 'mutated_objects': ['x', 'y', 'z']},
-            'bar': {'pure': 1, 'mutated_objects': ['z']},
+            'foo': {'pure': True, 'mutated_objects': set()},
+            'bar': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -356,8 +373,8 @@ foo()
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': True, 'mutated_objects': ['x', 'y']},
-            'bar': {'pure': False, 'mutated_objects': ['x', 'y']},
+            'foo': {'pure': True, 'mutated_objects': set()},
+            'bar': {'pure': False, 'mutated_objects': {'x', 'y'}},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -376,8 +393,8 @@ foo()
 """
         received_out = analyze(source)
         expected_out = {
-            'foo': {'pure': False, 'mutated_objects': ['x', 'y']},
-            'bar': {'pure': False, 'mutated_objects': ['x', 'y']},
+            'foo': {'pure': False, 'mutated_objects': {'x', 'y'}},
+            'bar': {'pure': False, 'mutated_objects': {'x', 'y'}},
         }
         self.assertEqual(received_out, expected_out)
 

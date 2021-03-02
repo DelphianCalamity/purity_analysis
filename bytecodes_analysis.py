@@ -1,36 +1,7 @@
 import sys
 import dis
 
-class FunctionInfo:
-    def __init__(self):
-        self.pure = 1
-        self.mutated_objects = set()
-
-    def mutates(self, varname):
-        self.mutated_objects.add(varname)
-
-class FunctionVariables:
-    def __init__(self, func_name):
-        self.func_name = func_name
-        self.locals = ()
-        self.globals = ()
-
-    def add_locals(self, locals):
-        self.locals += locals
-
-    def add_globals(self, globals):
-        self.globals += (globals)
-
-    def find_in_locals(self, var):
-        print(var)
-        print(self.locals)
-        return (var in self.locals)
-
-    def find_in_globals(self, var):
-        return (var in self.globals)
-
-    def print(self):
-        print("func:", self.func_name, ", locals:", self.locals, ", globals:", self.globals)
+from utils import EventType, FunctionInfo, FunctionVariables, StoreOps
 
 
 def analyze(code):
@@ -38,10 +9,10 @@ def analyze(code):
     def trace_calls(frame, event, arg):
         co = frame.f_code
         func_name = co.co_name
-        if func_name in ignore_functions:
+        if func_name == EventType.BASE:
             return
 
-        if event == "call":
+        if event == EventType.CALL:
 
             print("Frame: ", frame)
             print("Event: ", event)
@@ -91,22 +62,22 @@ def analyze(code):
             # Track the STORE bytecodes
             bytecodes = dis.get_instructions(frame.f_code)
             for bytecode in bytecodes:
-                if bytecode.opname in {"STORE_GLOBAL", "STORE_DEREF"}:  # Ignore STORE_FAST as it writes locals
+                if bytecode.opname in StoreOps:
                     print("Bytecode:", bytecode)
                     var = bytecode.argval
                     for function_variables in variables_stack[::-1]:
                         if function_variables.find_in_locals(var):  # Trace the origin of this variable
                             break
                         else:  # current function is impure
-                            functions_visited[function_variables.func_name].pure = 0
+                            functions_visited[function_variables.func_name].pure = False
                             functions_visited[function_variables.func_name].mutates(var)
 
             print("\n\n\n")
 
-        elif event == "return":
+        elif event == EventType.RETURN:
             variables_stack.pop()
 
-        elif event == "c_call":
+        elif event == EventType.C_CALL:
             print("Frame: ", frame, "line-number", frame.f_lineno, "last-line", frame.f_lasti)
             print("Event: ", event)
             print("Arg: ", arg)
@@ -117,15 +88,17 @@ def analyze(code):
 
     functions_visited = {}
     variables_stack = []        # Treat as a stack
-    ignore_functions = {"<module>"}
+    # ignore_functions = {"<module>"}
     sys.setprofile(trace_calls)
     exec(code)
     sys.setprofile(None)
 
     output = {}
     for func_name in functions_visited:
-        output[func_name] = {"pure" : functions_visited[func_name].pure,
-                             "mutated_objects" : list(functions_visited[func_name].mutated_objects)}
+        output[func_name] = {
+            "pure": functions_visited[func_name].pure,
+            "mutated_objects": functions_visited[func_name].mutated_objects,
+        }
     print(output)
     return output
 
