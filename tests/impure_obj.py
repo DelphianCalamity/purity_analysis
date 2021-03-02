@@ -31,3 +31,5 @@ def main():
     foo2(Person())
     foo3([1, 2, 3])
     foo4([1, 2, 3])
+
+main()

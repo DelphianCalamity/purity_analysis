@@ -26,3 +26,6 @@ def main():
     foo2(0)
     foo3()
     foo4()
+
+
+main()

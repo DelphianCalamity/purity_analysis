@@ -12,3 +12,5 @@ def foo(n):
 
 def main():
     foo(5)
+
+main()

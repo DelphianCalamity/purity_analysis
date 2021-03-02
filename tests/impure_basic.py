@@ -18,3 +18,5 @@ def main():
     foo1()
     foo2(True)
     foo2(False)
+
+main()

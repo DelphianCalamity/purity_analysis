@@ -25,3 +25,5 @@ def bar2():
 def main():
     foo1()
     foo2()
+
+main()
