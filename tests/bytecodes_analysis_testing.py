@@ -11,6 +11,7 @@ class TestBytecodesAnalysis(unittest.TestCase):
             'foo2': {'pure': True, 'mutated_objects': set()},
             'foo3': {'pure': True, 'mutated_objects': set()},
             'foo4': {'pure': True, 'mutated_objects': set()},
+            'main': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -20,6 +21,7 @@ class TestBytecodesAnalysis(unittest.TestCase):
         expected_out = {
             'foo1': {'pure': False, 'mutated_objects': {'global_x'}},
             'foo2': {'pure': False, 'mutated_objects': {'global_x'}},
+            'main': {'pure': False, 'mutated_objects': {'global_x'}},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -30,6 +32,7 @@ class TestBytecodesAnalysis(unittest.TestCase):
             'foo1': {'pure': True, 'mutated_objects': set()},
             'foo2': {'pure': True, 'mutated_objects': set()},
             'foo3': {'pure': True, 'mutated_objects': set()},
+            'main': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -41,6 +44,7 @@ class TestBytecodesAnalysis(unittest.TestCase):
             'foo2': {'pure': False, 'mutated_objects': {'person'}},
             'foo3': {'pure': False, 'mutated_objects': {'nums'}},
             'foo4': {'pure': False, 'mutated_objects': {'nums'}},
+            'main': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -52,6 +56,7 @@ class TestBytecodesAnalysis(unittest.TestCase):
             'bar1': {'pure': True, 'mutated_objects': set()},
             'foo2': {'pure': True, 'mutated_objects': set()},
             'bar2': {'pure': False, 'mutated_objects': {'person2'}},
+            'main': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -63,6 +68,7 @@ class TestBytecodesAnalysis(unittest.TestCase):
             'bar1': {'pure': True, 'mutated_objects': set()},
             'foo2': {'pure': False, 'mutated_objects': {'global_x'}},
             'bar2': {'pure': False, 'mutated_objects': {'global_x'}},
+            'main': {'pure': False, 'mutated_objects': {'global_x'}},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -71,6 +77,7 @@ class TestBytecodesAnalysis(unittest.TestCase):
         received_out = analyze(file_path)
         expected_out = {
             'foo': {'pure': True, 'mutated_objects': set()},
+            'main': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -79,6 +86,7 @@ class TestBytecodesAnalysis(unittest.TestCase):
         received_out = analyze(file_path)
         expected_out = {
             'foo': {'pure': False, 'mutated_objects': {'global_x'}},
+            'main': {'pure': False, 'mutated_objects': {'global_x'}},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -92,6 +100,7 @@ class TestBytecodesAnalysis(unittest.TestCase):
             'bar2': {'pure': True, 'mutated_objects': set()},
             'foo3': {'pure': True, 'mutated_objects': set()},
             'bar3': {'pure': False, 'mutated_objects': {'nonlocal_x', 'nonlocal_y'}},
+            'main': {'pure': True, 'mutated_objects': set()},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -101,6 +110,7 @@ class TestBytecodesAnalysis(unittest.TestCase):
         expected_out = {
             'foo': {'pure': False, 'mutated_objects': {'global_x', 'global_y'}},
             'bar': {'pure': False, 'mutated_objects': {'global_x', 'global_y'}},
+            'main': {'pure': False, 'mutated_objects': {'global_x', 'global_y'}},
         }
         self.assertEqual(received_out, expected_out)
 
