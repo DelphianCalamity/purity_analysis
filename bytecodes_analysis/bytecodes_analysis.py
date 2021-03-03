@@ -19,18 +19,18 @@ class BytecodesAnalysis:
         self.old_code = None
         self.backup = None
 
-    def inject_tracing_code(self):
+    def inject_tracing_code(self, ignore):
         with open(self.source_path) as fp:
             self.old_code = fp.read()
             new_code = f"""\
 import sys
 from bytecodes_analysis.tracer import Tracer
-tracer = Tracer()
-sys.setprofile(tracer.trace_calls)
+tracer = Tracer({ignore})
+sys.settrace(tracer.trace_calls)
 
 {self.old_code}
 
-sys.setprofile(None) 
+sys.settrace(None) 
 tracer.log_annotations(__file__)
 """
         self.backup = self.source_path + ".backup"
@@ -46,9 +46,10 @@ tracer.log_annotations(__file__)
         os.rename(self.backup, self.source_path)
 
 
-def analyze(source_input):
+def analyze(source_input, ignore=None):
+    ignore = [] if ignore is None else ignore
     app = BytecodesAnalysis(source_input)
-    app.inject_tracing_code()
+    app.inject_tracing_code(ignore)
     app.execute()
     with open(app.source_path + ".annotations") as json_file:
         annotations = json.load(json_file)
