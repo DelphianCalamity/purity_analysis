@@ -3,8 +3,7 @@ import json
 import pprint as pp
 from itertools import islice
 
-from bytecodes_analysis.utils import EventType, FunctionInfo, print_frame
-
+from bytecodes_analysis.utils import EventType, FuncType, FunctionInfo, print_frame
 
 class Tracer:
 
@@ -12,24 +11,26 @@ class Tracer:
         self.functions_visited = {}
         self.ignore = [] if ignore is None else ignore
 
+    def _get_instruction(self, frame, index):
+        instructions = dis.get_instructions(frame.f_code)
+        return next(islice(instructions, int(index / 2), None))
+
     def generic_tracing(self, frame, event, arg):
         print("Event:", event, "function: ", frame.f_code.co_name, "arg:", arg)
 
     def trace_bytecodes(self, frame, event, arg):
-
         if event != "opcode":
             return
 
-        print("Event:", event, "function: ", frame.f_code.co_name, "arg:", arg)
-        instructions = dis.get_instructions(frame.f_code)
-        i = next(islice(instructions, int(frame.f_lasti / 2), None))
+        # print("Event:", event, "function: ", frame.f_code.co_name, "arg:", arg)
+        i = self._get_instruction(frame, frame.f_lasti)
         print(i)
-
         opname = i.opname
         var = i.argval
+        # print("\ncaller", frame.f_code.co_name, "\nLocals", frame.f_locals, "\nGlobals", frame.f_globals)
 
-        if opname in {'STORE_DEREF', 'STORE_GLOBAL', 'STORE_NAME'}:
-            # Trace var all the way back to the initial frame; stop when it is found in a frame's locals
+        if opname in {'STORE_GLOBAL', 'STORE_NAME'}:
+            # Trace var all the way back to the initial frame; stop if it is found in a frame's locals
             caller = frame
             while caller is not None:
                 print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
@@ -38,21 +39,51 @@ class Tracer:
                 else:
                     self.functions_visited[caller.f_code.co_name].pure = False
                     self.functions_visited[caller.f_code.co_name].mutates(var)
-                print(caller)
-                print(frame.f_back)
-                if caller == frame.f_back:
+                if caller == frame.f_back or \
+                        frame.f_back.f_code.co_name == "<module>":
                     return
                 caller = frame.f_back
 
-        # elif opname == "STORE_ATTR":
+        elif opname in {"STORE_ATTR", "STORE_SUBSCR"}:
+            # Writes in the heap; declare all parent functions including this one as impure
+            caller = frame
+            while caller is not None:
+                print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
+                self.functions_visited[caller.f_code.co_name].pure = False
+                # self.functions_visited[caller.f_code.co_name].mutates()
+                if caller == frame.f_back or \
+                        frame.f_back.f_code.co_name == "<module>":
+                    return
+                caller = frame.f_back
+
+        elif opname == 'STORE_DEREF':
+            caller = frame
+            while caller is not None:
+                print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
+                if var in caller.f_code.co_cellvars:  # Found the owner
+                    break
+                else:
+                    self.functions_visited[caller.f_code.co_name].pure = False
+                    self.functions_visited[caller.f_code.co_name].mutates(var)
+                if caller == frame.f_back or \
+                        frame.f_back.f_code.co_name == "<module>":
+                    return
+                caller = frame.f_back
 
     def trace_calls(self, frame, event, arg):
         co = frame.f_code
         func_name = co.co_name
         frame.f_trace_opcodes = True
 
-        # if func_name in self.ignore: #+[FuncType.CONSTRUCTOR]:
-        #     return
+        if func_name == FuncType.CONSTRUCTOR:
+            # print("\n\n\n")
+            # print(frame.f_globals)
+            # print(frame.f_locals)
+            # print("\n\n\n")
+            return
+
+        if func_name in self.ignore:
+            return
 
         if event == EventType.CALL:
             print_frame(frame, event, arg)
@@ -83,3 +114,21 @@ class Tracer:
             w.write(r)
         pp.pprint(output)
         return output
+
+    def trace_c_calls(self, frame, event, arg):
+        if event == EventType.C_CALL:
+            print("\n\nEvent", event, "Frame: ", frame, "line-number", frame.f_lineno, "last-line", frame.f_lasti,
+                  "Arg", arg)
+            caller = frame
+            while caller is not None:
+                # print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
+                if caller.f_code.co_name in self.functions_visited:
+                    self.functions_visited[caller.f_code.co_name].pure = False
+                    # self.functions_visited[caller.f_code.co_name].mutates()
+                print(caller)
+                print(frame.f_back)
+                if caller == frame.f_back or \
+                        frame.f_back.f_code.co_name == "<module>":
+                    return
+                caller = frame.f_back
+                # time.sleep(2)

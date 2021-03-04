@@ -27,10 +27,12 @@ import sys
 from bytecodes_analysis.tracer import Tracer
 tracer = Tracer({ignore})
 sys.settrace(tracer.trace_calls)
+sys.setprofile(tracer.trace_c_calls)
 
 {self.old_code}
 
 sys.settrace(None) 
+sys.setprofile(None)
 tracer.log_annotations(__file__)
 """
         self.backup = self.source_path + ".backup"

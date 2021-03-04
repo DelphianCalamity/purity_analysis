@@ -33,19 +33,21 @@ class TestBytecodesAnalysis(unittest.TestCase):
             'foo1': {'pure': True, 'mutated_objects': []},
             'foo2': {'pure': True, 'mutated_objects': []},
             'foo3': {'pure': True, 'mutated_objects': []},
+            'get_name': {'pure': True, 'mutated_objects': []},
             'main': {'pure': True, 'mutated_objects': []},
         }
         self.assertEqual(received_out, expected_out)
 
     def test_impure_obj(self):
         file_path = 'impure_obj'
-        received_out = analyze(file_path)
+        received_out = analyze(file_path, ignore=["Person"])
         expected_out = {
-            'foo1': {'pure': False, 'mutated_objects': ['person']},
-            'foo2': {'pure': False, 'mutated_objects': ['person']},
-            'foo3': {'pure': False, 'mutated_objects': ['nums']},
-            'foo4': {'pure': False, 'mutated_objects': ['nums']},
-            'main': {'pure': True, 'mutated_objects': []},
+            'foo1': {'pure': False, 'mutated_objects': []},
+            'foo2': {'pure': False, 'mutated_objects': []},
+            'foo3': {'pure': False, 'mutated_objects': []},
+            'foo4': {'pure': False, 'mutated_objects': []},
+            'set_name': {'pure': False, 'mutated_objects': []},
+            'main': {'pure': False, 'mutated_objects': []},
         }
         self.assertEqual(received_out, expected_out)
 
