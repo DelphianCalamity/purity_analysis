@@ -39,10 +39,13 @@ class Tracer:
                 else:
                     self.functions_visited[caller.f_code.co_name].pure = False
                     self.functions_visited[caller.f_code.co_name].mutates(var)
-                if caller == frame.f_back or \
-                        frame.f_back.f_code.co_name == "<module>":
+                # print("aa", caller.f_back, caller.f_back.f_code.co_name)
+                # print(caller); print(caller.f_back)
+                # if caller == frame.f_back or \
+                if caller.f_back.f_code.co_name == FuncType.BASE:
                     return
-                caller = frame.f_back
+                # time.sleep(2)
+                caller = caller.f_back
 
         elif opname in {"STORE_ATTR", "STORE_SUBSCR"}:
             # Writes in the heap; declare all parent functions including this one as impure
@@ -51,10 +54,9 @@ class Tracer:
                 print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
                 self.functions_visited[caller.f_code.co_name].pure = False
                 # self.functions_visited[caller.f_code.co_name].mutates()
-                if caller == frame.f_back or \
-                        frame.f_back.f_code.co_name == "<module>":
+                if caller.f_back.f_code.co_name == FuncType.BASE:
                     return
-                caller = frame.f_back
+                caller = caller.f_back
 
         elif opname == 'STORE_DEREF':
             caller = frame
@@ -65,10 +67,9 @@ class Tracer:
                 else:
                     self.functions_visited[caller.f_code.co_name].pure = False
                     self.functions_visited[caller.f_code.co_name].mutates(var)
-                if caller == frame.f_back or \
-                        frame.f_back.f_code.co_name == "<module>":
+                if caller.f_back.f_code.co_name == FuncType.BASE:
                     return
-                caller = frame.f_back
+                caller = caller.f_back
 
     def trace_calls(self, frame, event, arg):
         co = frame.f_code
@@ -91,16 +92,6 @@ class Tracer:
             if func_name not in self.functions_visited:
                 self.functions_visited[func_name] = FunctionInfo()
             return self.trace_bytecodes
-
-        # elif event == EventType.C_CALL:
-        #     print("Frame: ", frame, "line-number", frame.f_lineno, "last-line", frame.f_lasti)
-        #     print("Event: ", event)
-        #     print("Arg: ", arg)
-        #     # print(dis.disco(frame.f_code, lasti=frame.f_lasti))
-        #     # print("bytecode: ", frame.f_code.co_code[frame.f_lasti + 1])
-        #     # print(dis.opname[frame.f_code.co_code[frame.f_lasti]])
-        #     print("\n\n\n")
-
 
     def log_annotations(self, filename):
         output = {}

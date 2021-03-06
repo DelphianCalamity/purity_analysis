@@ -53,13 +53,13 @@ class TestBytecodesAnalysis(unittest.TestCase):
 
     def test_pure_call(self):
         file_path = 'pure_call'
-        received_out = analyze(file_path)
+        received_out = analyze(file_path, ignore=["Person"])
         expected_out = {
             'foo1': {'pure': True, 'mutated_objects': []},
             'bar1': {'pure': True, 'mutated_objects': []},
-            'foo2': {'pure': True, 'mutated_objects': []},
-            'bar2': {'pure': False, 'mutated_objects': {'person2'}},
-            'main': {'pure': True, 'mutated_objects': []},
+            'foo2': {'pure': False, 'mutated_objects': []},
+            'bar2': {'pure': False, 'mutated_objects': []},
+            'main': {'pure': False, 'mutated_objects': []},
         }
         self.assertEqual(received_out, expected_out)
 

@@ -5,7 +5,6 @@ class Person:
     def set_name(self, name):
         self.name = name
 
-
 # mutate obj prop directly
 def foo1(person):
     person.name = 'anna'
