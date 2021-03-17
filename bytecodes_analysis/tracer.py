@@ -37,28 +37,24 @@ class Tracer:
             # Trace var all the way back to the initial frame; stop if it is found in a frame's locals
             # _, var_address = self.find_in_globals_or_locals(frame, var)
             caller = frame
-            while caller is not None:
+            while caller is not None and caller.f_code.co_name != FuncType.BASE:
                 print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
                 if var in caller.f_locals:
                     break
                 else:
                     self.functions_visited[caller.f_code.co_name].pure = False
                     self.functions_visited[caller.f_code.co_name].mutates(var)
-                if caller.f_back.f_code.co_name == FuncType.BASE:
-                    return
                 caller = caller.f_back
 
         elif opname == 'STORE_DEREF':
             caller = frame
-            while caller is not None:
+            while caller is not None and caller.f_code.co_name != FuncType.BASE:
                 print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
                 if var in caller.f_code.co_cellvars:  # Found the owner
                     break
                 else:
                     self.functions_visited[caller.f_code.co_name].pure = False
                     self.functions_visited[caller.f_code.co_name].mutates(var)
-                if caller.f_back.f_code.co_name == FuncType.BASE:
-                    return
                 caller = caller.f_back
 
         elif opname in {"STORE_ATTR", "STORE_SUBSCR"}:
@@ -85,7 +81,7 @@ class Tracer:
                 print("     ", colored(r, "green"), colored(ref_map[r], "blue"))
 
             caller = frame
-            while caller.f_back.f_code.co_name != FuncType.BASE and caller is not None:
+            while caller is not None and caller.f_code.co_name != FuncType.BASE:
                 print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
 
                 ref_map.pop(caller.f_code.co_name)
@@ -139,17 +135,14 @@ class Tracer:
             #     and self.native_annotations[arg.__name__] == True:
             #         return
             caller = frame
-            while caller is not None:
+            while caller is not None and caller.f_code.co_name != FuncType.BASE:
+
                 # print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
                 if caller.f_code.co_name in self.functions_visited:
                     self.functions_visited[caller.f_code.co_name].pure = False
                     # self.functions_visited[caller.f_code.co_name].mutates()
                 print(caller)
                 print(frame.f_back)
-                if caller.f_code.co_name == FuncType.BASE or caller.f_back.f_code.co_name == FuncType.BASE:
-                    # if caller == frame.f_back or \
-                    #         frame.f_back.f_code.co_name == "<module>":
-                    return
                 caller = frame.f_back
 
     def log_annotations(self, filename):

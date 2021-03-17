@@ -133,11 +133,11 @@ def print_frame(frame, event, arg):
     print("Arg: ", arg)
     print("-------Frame code object------ ", co)
     # print("CodeObject argcount: ", co.co_argcount)
-    print("CodeObject nlocals: ", co.co_nlocals)
-    print("CodeObject varnames: ", co.co_varnames)
-    print("CodeObject cellvars: ", co.co_cellvars)
-    print("CodeObject freevars: ", co.co_freevars)
-    print("CodeObject globals: ", co.co_names)
+    print(colored("CodeObject nlocals: ", "red"), co.co_nlocals)
+    print(colored("CodeObject varnames: ", "red"), co.co_varnames)
+    print(colored("CodeObject cellvars: ", "red"), co.co_cellvars)
+    print(colored("CodeObject freevars: ", "red"), co.co_freevars)
+    print(colored("CodeObject globals: ", "red"), co.co_names)
     # print("CodeObject consts: ", co.co_consts)
     # print("CodeObject stacksize: ", co.co_stacksize)
     # print("CodeObject code: ", co.co_code)
@@ -155,9 +155,11 @@ def print_frame(frame, event, arg):
     else:
         caller_line_no = None
         caller_filename = None
-    print('Calling: \n func-name: %s\n,  on line: %s, of file: %s from line: %s, of file: %s' % \
-          (func_name, func_line_no, func_filename,
-           caller_line_no, caller_filename))
+    print(colored('Calling: \n func-name: %s\n,  on line: %s, of file: %s from line: %s, of file: %s' % \
+                  (func_name, func_line_no, func_filename,
+                   caller_line_no, caller_filename), "green"))
 
-    print("Frame flocals: ", f_locals)
-    print("Frame fglob: ", f_globals)
+    print(colored("Frame flocals: ", "yellow"))
+    print(colored(f_locals, "blue"))
+    print(colored("Frame fglob: \n", "blue"))
+    print(colored(f_globals, "blue"))
