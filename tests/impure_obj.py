@@ -1,3 +1,8 @@
+# from bytecodes_analysis.tracer import Tracer
+# tracer = Tracer(['Person', 'Boo'])
+# sys.settrace(tracer.trace_calls)
+# sys.setprofile(tracer.trace_c_calls)
+
 class Person:
     def __init__(self):
         self.name = None
@@ -5,30 +10,37 @@ class Person:
     def set_name(self, name):
         self.name = name
 
-# mutate obj prop directly
-def foo1(person):
-    person.name = 'anna'
-
 
 # mutate obj prop indirectly
-def foo2(person):
+def foo1(person):
     person.set_name('anna')
 
 
-# mutate list content
-def foo3(nums):
-    nums[0] = 0
+class Boo:
+    def __init__(self, b):
+        self.a = b
+        self.b = 3
 
 
-# mutate list size
-def foo4(nums):
-    nums.append(0)
+outlist = [0]
+y = 4
 
 
 def main():
-    foo1(Person())
-    foo2(Person())
-    foo3([1, 2, 3])
-    foo4([1, 2, 3])
+    # global y
+    person = Person()
+    person1 = person
+
+    # outlist[0] = person
+    # y = person
+    b = Boo(person)
+    p = [person, 0]
+    m = {}
+    m['0'] = person
+    m['1'] = 1
+    foo1(person)
+
 
 main()
+# sys.settrace(None)
+# sys.setprofile(None)
