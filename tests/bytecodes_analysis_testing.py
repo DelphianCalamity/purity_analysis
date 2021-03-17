@@ -3,6 +3,17 @@ import unittest
 from bytecodes_analysis import analyze
 
 
+# def strip_address(x):
+#     for func_name in x:
+#         func = x[func_name]
+#         mutated_objects = func['mutated_objects']
+#         for i,_ in enumerate(mutated_objects):
+#             # mutated_objects[i] = tuple(mutated_objects[i][0], mutated_objects[i][1])
+#             mutated_objects[i] = mutated_objects[i][1]
+#         print(func)
+#     return x
+
+
 class TestBytecodesAnalysis(unittest.TestCase):
     def test_pure_basic(self):
         file_path = 'pure_basic'
@@ -40,14 +51,15 @@ class TestBytecodesAnalysis(unittest.TestCase):
 
     def test_impure_obj(self):
         file_path = 'impure_obj'
-        received_out = analyze(file_path, ignore=["Person"])
+        received_out = analyze(file_path, ignore=["Person", "Boo"])
         expected_out = {
-            'foo1': {'pure': False, 'mutated_objects': []},
-            'foo2': {'pure': False, 'mutated_objects': []},
-            'foo3': {'pure': False, 'mutated_objects': []},
-            'foo4': {'pure': False, 'mutated_objects': []},
-            'set_name': {'pure': False, 'mutated_objects': []},
-            'main': {'pure': False, 'mutated_objects': []},
+            'foo1': {'pure': False, 'mutated_objects': ['{"main": ["person", "person1", "b", "p", "m"]}']},
+            # 'foo2': {'pure': False, 'mutated_objects': []},
+            # 'foo3': {'pure': False, 'mutated_objects': []},
+            # 'foo4': {'pure': False, 'mutated_objects': []},
+            'set_name': {'pure': False,
+                         'mutated_objects': ['{"main": ["person", "person1", "b", "p", "m"], "foo1": ["person"]}']},
+            'main': {'pure': True, 'mutated_objects': []},
         }
         self.assertEqual(received_out, expected_out)
 
@@ -57,9 +69,9 @@ class TestBytecodesAnalysis(unittest.TestCase):
         expected_out = {
             'foo1': {'pure': True, 'mutated_objects': []},
             'bar1': {'pure': True, 'mutated_objects': []},
-            'foo2': {'pure': False, 'mutated_objects': []},
-            'bar2': {'pure': False, 'mutated_objects': []},
-            'main': {'pure': False, 'mutated_objects': []},
+            'foo2': {'pure': True, 'mutated_objects': []},
+            'bar2': {'pure': False, 'mutated_objects': ['{"foo2": ["person1"]}']},
+            'main': {'pure': True, 'mutated_objects': []},
         }
         self.assertEqual(received_out, expected_out)
 

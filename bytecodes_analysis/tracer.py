@@ -1,15 +1,20 @@
-import dis
 import json
-import pprint as pp
 from itertools import islice
 
-from bytecodes_analysis.utils import EventType, FuncType, FunctionInfo, print_frame
+from termcolor import colored
+
+from bytecodes_analysis.utils import *
+
 
 class Tracer:
 
     def __init__(self, ignore=None):
         self.functions_visited = {}
         self.ignore = [] if ignore is None else ignore
+        self.lmap = {}
+
+        # with open("bytecodes_analysis/c_function_annotations.json") as json_file:
+        #     self.native_annotations = json.load(json_file)
 
     def _get_instruction(self, frame, index):
         instructions = dis.get_instructions(frame.f_code)
@@ -28,9 +33,9 @@ class Tracer:
         opname = i.opname
         var = i.argval
         # print("\ncaller", frame.f_code.co_name, "\nLocals", frame.f_locals, "\nGlobals", frame.f_globals)
-
         if opname in {'STORE_GLOBAL', 'STORE_NAME'}:
             # Trace var all the way back to the initial frame; stop if it is found in a frame's locals
+            # _, var_address = self.find_in_globals_or_locals(frame, var)
             caller = frame
             while caller is not None:
                 print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
@@ -39,21 +44,6 @@ class Tracer:
                 else:
                     self.functions_visited[caller.f_code.co_name].pure = False
                     self.functions_visited[caller.f_code.co_name].mutates(var)
-                # print("aa", caller.f_back, caller.f_back.f_code.co_name)
-                # print(caller); print(caller.f_back)
-                # if caller == frame.f_back or \
-                if caller.f_back.f_code.co_name == FuncType.BASE:
-                    return
-                # time.sleep(2)
-                caller = caller.f_back
-
-        elif opname in {"STORE_ATTR", "STORE_SUBSCR"}:
-            # Writes in the heap; declare all parent functions including this one as impure
-            caller = frame
-            while caller is not None:
-                print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
-                self.functions_visited[caller.f_code.co_name].pure = False
-                # self.functions_visited[caller.f_code.co_name].mutates()
                 if caller.f_back.f_code.co_name == FuncType.BASE:
                     return
                 caller = caller.f_back
@@ -71,27 +61,96 @@ class Tracer:
                     return
                 caller = caller.f_back
 
+        elif opname in {"STORE_ATTR", "STORE_SUBSCR"}:
+            # Get the referrer to the object that we write from the previous bytecode
+            last_i = frame.f_lasti - 1 if opname == "STORE_ATTR" else frame.f_lasti - 4
+            prev_i = self._get_instruction(frame, last_i)
+            mutated_obj_address = value_by_key_globals_or_locals(frame, prev_i.argval)
+
+            print(colored("Starting..\n", "red"))
+            ref_ids = [];
+            named_refs = []
+            find_referrers(self.lmap, mutated_obj_address, named_refs, ref_ids, frame)
+
+            ref_map = {}
+            for r in named_refs:
+                func_name = r[0].f_code.co_name
+                if func_name in ref_map:
+                    ref_map[func_name] += r[1]
+                else:
+                    ref_map[func_name] = r[1]
+
+            print(colored("Refs Map", "red"))
+            for r in ref_map:
+                print("     ", colored(r, "green"), colored(ref_map[r], "blue"))
+
+            caller = frame
+            while caller.f_back.f_code.co_name != FuncType.BASE and caller is not None:
+                print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
+
+                ref_map.pop(caller.f_code.co_name)
+                if len(ref_map) == 0:
+                    return
+
+                print(colored("Refs Map", "red"))
+                for r in ref_map:
+                    print("     ", colored(r, "green"), colored(ref_map[r], "blue"))
+
+                self.functions_visited[caller.f_code.co_name].pure = False
+                self.functions_visited[caller.f_code.co_name].mutates(json.dumps(ref_map))
+                caller = caller.f_back
+
+
     def trace_calls(self, frame, event, arg):
         co = frame.f_code
         func_name = co.co_name
         frame.f_trace_opcodes = True
 
-        if func_name == FuncType.CONSTRUCTOR:
-            # print("\n\n\n")
-            # print(frame.f_globals)
-            # print(frame.f_locals)
-            # print("\n\n\n")
+        if func_name == FuncType.BASE:
+            self.lmap[hex(id(frame.f_locals))] = frame
             return
 
-        if func_name in self.ignore:
+        if func_name == FuncType.CONSTRUCTOR or \
+                func_name in self.ignore:
             return
 
         if event == EventType.CALL:
             print_frame(frame, event, arg)
-            ########################################################################################################
+            self.lmap[hex(id(frame.f_locals))] = frame
+
             if func_name not in self.functions_visited:
                 self.functions_visited[func_name] = FunctionInfo()
             return self.trace_bytecodes
+
+        # elif event == EventType.RETURN:
+        #     delete from lmaps
+
+    def trace_c_calls(self, frame, event, arg):
+
+        if frame.f_code.co_name == FuncType.BASE:
+            self.lmap[hex(id(frame.f_locals))] = frame
+
+        if event == EventType.C_CALL:
+
+            print("\n\nEvent", event, "Frame: ", frame, "line-number", frame.f_lineno, "last-line", frame.f_lasti,
+                  "Arg", arg)
+            # print(colored("\n\n\n,Arg", "green"), dir(arg), arg.__name__, "\n\n\n")
+            # if arg.__name__ in self.native_annotations \
+            #     and self.native_annotations[arg.__name__] == True:
+            #         return
+            caller = frame
+            while caller is not None:
+                # print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
+                if caller.f_code.co_name in self.functions_visited:
+                    self.functions_visited[caller.f_code.co_name].pure = False
+                    # self.functions_visited[caller.f_code.co_name].mutates()
+                print(caller)
+                print(frame.f_back)
+                if caller.f_code.co_name == FuncType.BASE or caller.f_back.f_code.co_name == FuncType.BASE:
+                    # if caller == frame.f_back or \
+                    #         frame.f_back.f_code.co_name == "<module>":
+                    return
+                caller = frame.f_back
 
     def log_annotations(self, filename):
         output = {}
@@ -101,25 +160,7 @@ class Tracer:
                 "mutated_objects": sorted(list(self.functions_visited[func_name].mutated_objects))
             }
         with open(filename + ".annotations", 'w') as w:
-            r = json.dumps(output)
+            r = json.dumps(output, indent=4)
             w.write(r)
         pp.pprint(output)
         return output
-
-    def trace_c_calls(self, frame, event, arg):
-        if event == EventType.C_CALL:
-            print("\n\nEvent", event, "Frame: ", frame, "line-number", frame.f_lineno, "last-line", frame.f_lasti,
-                  "Arg", arg)
-            caller = frame
-            while caller is not None:
-                # print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
-                if caller.f_code.co_name in self.functions_visited:
-                    self.functions_visited[caller.f_code.co_name].pure = False
-                    # self.functions_visited[caller.f_code.co_name].mutates()
-                print(caller)
-                print(frame.f_back)
-                if caller == frame.f_back or \
-                        frame.f_back.f_code.co_name == "<module>":
-                    return
-                caller = frame.f_back
-                # time.sleep(2)
