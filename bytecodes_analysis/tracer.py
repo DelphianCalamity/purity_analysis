@@ -1,8 +1,6 @@
 import json
 from itertools import islice
 
-from termcolor import colored
-
 from bytecodes_analysis.utils import *
 
 
@@ -12,6 +10,7 @@ class Tracer:
         self.functions_visited = {}
         self.ignore = [] if ignore is None else ignore
         self.lmap = {}
+        self.init = True
 
         # with open("bytecodes_analysis/c_function_annotations.json") as json_file:
         #     self.native_annotations = json.load(json_file)
@@ -21,7 +20,16 @@ class Tracer:
         return next(islice(instructions, int(index / 2), None))
 
     def generic_tracing(self, frame, event, arg):
-        print("Event:", event, "function: ", frame.f_code.co_name, "arg:", arg)
+        print(colored("!!!!!", "green"), "\n\nEvent:", event, "function: ", frame.f_code.co_name, "arg:", arg)
+
+        caller = frame
+        while caller is not None:
+            print(colored("\nFrame", "red"), caller)
+            print(colored("\nLocals", "red"), caller.f_locals)
+            print(colored("\nGlobals", "red"), caller.f_globals)
+            self.lmap[hex(id(caller.f_locals))] = caller
+            caller = caller.f_back
+        pp.pprint(self.lmap)
 
     def trace_bytecodes(self, frame, event, arg):
         if event != "opcode":
@@ -32,13 +40,18 @@ class Tracer:
         print(i)
         opname = i.opname
         var = i.argval
+
+        if opname == "RETURN_VALUE":
+            print(colored("\n\n\nDELETING FROM LMAP", "green"), frame)
+            self.lmap.pop(hex(id(frame.f_locals)))
+
         # print("\ncaller", frame.f_code.co_name, "\nLocals", frame.f_locals, "\nGlobals", frame.f_globals)
         if opname in {'STORE_GLOBAL', 'STORE_NAME'}:
             # Trace var all the way back to the initial frame; stop if it is found in a frame's locals
             # _, var_address = self.find_in_globals_or_locals(frame, var)
             caller = frame
             while caller is not None and caller.f_code.co_name != FuncType.BASE:
-                print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
+                # print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
                 if var in caller.f_locals:
                     break
                 else:
@@ -49,7 +62,7 @@ class Tracer:
         elif opname == 'STORE_DEREF':
             caller = frame
             while caller is not None and caller.f_code.co_name != FuncType.BASE:
-                print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
+                # print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
                 if var in caller.f_code.co_cellvars:  # Found the owner
                     break
                 else:
@@ -82,15 +95,15 @@ class Tracer:
 
             caller = frame
             while caller is not None and caller.f_code.co_name != FuncType.BASE:
-                print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
+                # print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
 
                 ref_map.pop(caller.f_code.co_name)
                 if len(ref_map) == 0:
                     return
 
-                print(colored("Refs Map", "red"))
-                for r in ref_map:
-                    print("     ", colored(r, "green"), colored(ref_map[r], "blue"))
+                # print(colored("Refs Map", "red"))
+                # for r in ref_map:
+                #     print("     ", colored(r, "green"), colored(ref_map[r], "blue"))
 
                 self.functions_visited[caller.f_code.co_name].pure = False
                 self.functions_visited[caller.f_code.co_name].mutates(json.dumps(ref_map))
@@ -102,14 +115,18 @@ class Tracer:
         func_name = co.co_name
         frame.f_trace_opcodes = True
 
-        if func_name == FuncType.BASE:
-            self.lmap[hex(id(frame.f_locals))] = frame
+        if self.init:
+            self.init = False
+            caller = frame
+            while caller is not None:
+                self.lmap[hex(id(caller.f_locals))] = caller
+                caller = caller.f_back
             return
-
-        if func_name == FuncType.CONSTRUCTOR or \
+        # {FuncType.CONSTRUCTOR,
+        if func_name == FuncType.BASE or func_name == FuncType.CONSTRUCTOR or \
                 func_name in self.ignore:
             return
-
+        # time.sleep(1)
         if event == EventType.CALL:
             print_frame(frame, event, arg)
             self.lmap[hex(id(frame.f_locals))] = frame
@@ -119,12 +136,24 @@ class Tracer:
             return self.trace_bytecodes
 
         # elif event == EventType.RETURN:
-        #     delete from lmaps
+        #     print(colored("DELETING FROM LMAP", "green"), frame)
+        #     self.lmap.pop(hex(id(frame)))
 
     def trace_c_calls(self, frame, event, arg):
 
-        if frame.f_code.co_name == FuncType.BASE:
-            self.lmap[hex(id(frame.f_locals))] = frame
+        if self.init:
+            self.init = False
+            # print(colored("AAAAAAAA", "blue"))
+            # time.sleep(10)
+            caller = frame
+            while caller is not None:
+                self.lmap[hex(id(caller.f_locals))] = caller
+                # pp.pprint(self.lmap)
+                # print(colored("\nFrame", "red"), caller)
+                # print(colored("\nLocals", "red"), caller.f_locals)
+                # print(colored("\nGlobals", "red"), caller.f_globals)
+                caller = caller.f_back
+            # exit(0)
 
         if event == EventType.C_CALL:
 

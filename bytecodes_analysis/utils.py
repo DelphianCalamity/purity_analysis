@@ -95,8 +95,9 @@ def value_by_key_globals_or_locals(frame, var):
 
 
 def find_referrers(lmap, obj_address, named_refs, ref_ids, frame):
+    gc.collect()
     referrers = gc.get_referrers(ctypes.cast(int(obj_address, 0), ctypes.py_object).value)
-    ref_ids += [hex(id(referrers))]
+    ref_ids.append(hex(id(referrers)))
 
     for ref in referrers:
         ref_id = hex(id(ref))
@@ -104,14 +105,15 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame):
         if ref_id in ref_ids:
             continue
 
+        ref_ids.append(ref_id)
         print(colored("REF-ID", "yellow"), hex(id(ref)));
         pp.pprint(ref)
         # Direct Reference - base case
         if ref_id in lmap:
             f = lmap[ref_id]
             print(colored("Found in L-map", "red"));
-            pp.pprint(lmap);
-            print("Locals", f.f_locals)
+            pp.pprint(lmap)
+            # print("Locals", f.f_locals)
             named_refs += [(f, keys_by_value_locals(f.f_locals, obj_address))]
             print(colored("Named Referrers", "red"))
             for r in named_refs:
@@ -123,12 +125,16 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame):
         else:
             find_referrers(lmap, ref_id, named_refs, ref_ids, frame)
 
+        del ref_ids[-1]
+    del ref_ids[-1]
+
 
 def print_frame(frame, event, arg):
     co = frame.f_code
     func_name = co.co_name
 
-    print("Frame: ", frame)
+    print(colored("\n\n##############################", "yellow"))
+    print("\n\nFrame: ", frame)
     print("Event: ", event)
     print("Arg: ", arg)
     print("-------Frame code object------ ", co)
@@ -159,7 +165,7 @@ def print_frame(frame, event, arg):
                   (func_name, func_line_no, func_filename,
                    caller_line_no, caller_filename), "green"))
 
-    print(colored("Frame flocals: ", "yellow"))
-    print(colored(f_locals, "blue"))
-    print(colored("Frame fglob: \n", "blue"))
-    print(colored(f_globals, "blue"))
+    # print(colored("Frame flocals: ", "yellow"))
+    # print(colored(f_locals, "blue"))
+    # print(colored("\nFrame fglob: ", "yellow"))
+    # print(colored(f_globals, "blue"))
