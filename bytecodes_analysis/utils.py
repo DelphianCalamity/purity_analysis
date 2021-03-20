@@ -97,21 +97,21 @@ def value_by_key_globals_or_locals(frame, var):
 def find_referrers(lmap, obj_address, named_refs, ref_ids, frame):
     gc.collect()
     referrers = gc.get_referrers(ctypes.cast(int(obj_address, 0), ctypes.py_object).value)
-    ref_ids.append(hex(id(referrers)))
+    ref_id_list = [hex(id(ref)) for ref in referrers]
+    del referrers
+    gc.collect()
 
-    for ref in referrers:
-        ref_id = hex(id(ref))
-
+    for ref_id in ref_id_list:
         if ref_id in ref_ids:
             continue
 
         ref_ids.append(ref_id)
-        print(colored("REF-ID", "yellow"), hex(id(ref)));
-        pp.pprint(ref)
+        print(colored("REF-ID:", "yellow"), ref_id)
+        #pp.pprint(ref)
         # Direct Reference - base case
         if ref_id in lmap:
             f = lmap[ref_id]
-            print(colored("Found in L-map", "red"));
+            print(colored("Found in L-map", "red"))
             pp.pprint(lmap)
             # print("Locals", f.f_locals)
             named_refs += [(f, keys_by_value_locals(f.f_locals, obj_address))]
@@ -126,7 +126,6 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame):
             find_referrers(lmap, ref_id, named_refs, ref_ids, frame)
 
         del ref_ids[-1]
-    del ref_ids[-1]
 
 
 def print_frame(frame, event, arg):
