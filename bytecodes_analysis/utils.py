@@ -93,8 +93,12 @@ def value_by_key_globals_or_locals(frame, var):
         exit(1)
     return var_address
 
-
 def find_referrers(lmap, obj_address, named_refs, ref_ids, frame):
+    gc.disable()
+    __find_referrers(lmap, obj_address, named_refs, ref_ids, frame)
+    gc.enable()
+
+def __find_referrers(lmap, obj_address, named_refs, ref_ids, frame):
     gc.collect()
     referrers = gc.get_referrers(ctypes.cast(int(obj_address, 0), ctypes.py_object).value)
     ref_id_list = [hex(id(ref)) for ref in referrers]
@@ -123,7 +127,7 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame):
         # Indirect reference - recursive case
         # trace back indirect referrers till we reach locals
         else:
-            find_referrers(lmap, ref_id, named_refs, ref_ids, frame)
+            __find_referrers(lmap, ref_id, named_refs, ref_ids, frame)
 
         del ref_ids[-1]
 
