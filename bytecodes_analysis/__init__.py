@@ -1,1 +1,0 @@
-from bytecodes_analysis.bytecodes_analysis import analyze

@@ -33,7 +33,8 @@ class EventType:
 
 
 class FunctionInfo:
-    def __init__(self):
+    def __init__(self, frame=None):
+        self.frame = frame
         self.pure = True
         # nonlocal vars only
         self.mutated_objects = set()
@@ -107,7 +108,7 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame):
 
         ref_ids.append(ref_id)
         print(colored("REF-ID", "yellow"), hex(id(ref)));
-        pp.pprint(ref)
+        # pp.pprint(ref)
         # Direct Reference - base case
         if ref_id in lmap:
             f = lmap[ref_id]
@@ -165,7 +166,7 @@ def print_frame(frame, event, arg):
                   (func_name, func_line_no, func_filename,
                    caller_line_no, caller_filename), "green"))
 
-    # print(colored("Frame flocals: ", "yellow"))
-    # print(colored(f_locals, "blue"))
-    # print(colored("\nFrame fglob: ", "yellow"))
-    # print(colored(f_globals, "blue"))
+    print(colored("Frame flocals: ", "yellow"))
+    print(colored(f_locals.keys(), "blue"))
+    print(colored("\nFrame fglob: ", "yellow"))
+    print(colored(f_globals.keys(), "blue"))
