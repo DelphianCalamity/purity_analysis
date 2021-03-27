@@ -136,9 +136,9 @@ class Tracer:
                 # return
             # {FuncType.CONSTRUCTOR,
             # or func_name == FuncType.CONSTRUCTOR or
-            if func_name == FuncType.BASE or \
-                    func_name in self.ignore:
-                return
+            # if func_name == FuncType.BASE or \
+            #         func_name in self.ignore:
+            #     return
             time.sleep(2)
             if event == EventType.CALL:
                 print_frame(frame, event, arg)
@@ -204,16 +204,21 @@ class Tracer:
 
 
     def log_annotations(self, filename):
-        output = {}
-        for frame_id in self.functions_visited:
-            output[frame_id] = {
-                "func_name": self.functions_visited[frame_id].func_name,
-                "pure": self.functions_visited[frame_id].pure,
-                "frame": self.functions_visited[frame_id].frame,
-                "mutated_objects": sorted(list(self.functions_visited[frame_id].mutated_objects))
-            }
-        with open(filename + ".annotations", 'w') as w:
-            r = json.dumps(output, indent=4)
-            w.write(r)
-        pp.pprint(output)
-        return output
+        try:
+
+            output = {}
+            for frame_id in self.functions_visited:
+                output[frame_id] = {
+                    "frame": self.functions_visited[frame_id].frame,
+                    "pure": self.functions_visited[frame_id].pure,
+                    "mutated_objects": sorted(list(self.functions_visited[frame_id].mutated_objects))
+                }
+            with open(filename + ".annotations", 'w') as w:
+                r = json.dumps(output, indent=4)
+                w.write(r)
+            pp.pprint(output)
+            return output
+        except:
+            print(colored("\n\nLog annotations\n\n", "red"))
+            print(colored(traceback.format_exc(), "red"))
+            exit(1)
