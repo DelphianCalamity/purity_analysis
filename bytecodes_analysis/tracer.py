@@ -104,19 +104,23 @@ class Tracer:
                 caller = frame
                 while caller is not None and caller.f_code.co_name != FuncType.BASE:
                     # print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
-                    ref_map.pop(hex(id(caller)))
+                    frame_id = hex(id(caller))
+                    if frame_id in ref_map:
+                        ref_map.pop(frame_id)
                     if len(ref_map) == 0:
                         return
                     # print(colored("Refs Map", "red"))
                     # for r in ref_map:
                     #     print("     ", colored(r, "green"), colored(ref_map[r], "blue"))
-                    frame_id = hex(id(caller))
+
                     self.functions_visited[frame_id].pure = False
                     self.functions_visited[frame_id].mutates(json.dumps(ref_map))
                     caller = caller.f_back
         except:
             print(colored("\n\nTrace Bytecodes failed\n\n", "red"))
             print(colored(traceback.format_exc(), "red"))
+            if caller:
+                print(str(caller))
             sys.settrace(None)
             sys.setprofile(None)
             exit(1)
