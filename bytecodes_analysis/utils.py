@@ -2,7 +2,7 @@ import ctypes
 import dis
 import gc
 import pprint as pp
-
+from types import ModuleType
 from termcolor import colored
 
 
@@ -33,8 +33,9 @@ class EventType:
 
 
 class FunctionInfo:
-    def __init__(self, frame=None):
+    def __init__(self, frame=None, parent_frame=None):
         self.frame = frame
+        self.parent_frame = parent_frame
         self.pure = True
         # nonlocal vars only
         self.mutated_objects = set()
@@ -101,6 +102,7 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame):
     ref_ids.append(hex(id(referrers)))
 
     for ref in referrers:
+        print("\n\n\n\n\n\n\n\n\n\n", 'len refs', colored(len(referrers), "green"))
         ref_id = hex(id(ref))
 
         if ref_id in ref_ids:
@@ -108,17 +110,27 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame):
 
         ref_ids.append(ref_id)
         print(colored("REF-ID", "yellow"), hex(id(ref)));
-        # pp.pprint(ref)
+        if isinstance(ref, dict):
+            pp.pprint(ref.keys())
+        else:
+            pp.pprint(ref)
         # Direct Reference - base case
         if ref_id in lmap:
             f = lmap[ref_id]
             print(colored("Found in L-map", "red"));
             pp.pprint(lmap)
             # print("Locals", f.f_locals)
-            named_refs += [(f, keys_by_value_locals(f.f_locals, obj_address))]
+            if isinstance(f, ModuleType):
+                named_refs += [(f, keys_by_value_locals(vars(f), obj_address))]
+            else:
+                named_refs += [(f, keys_by_value_locals(f.f_locals, obj_address))]
+
             print(colored("Named Referrers", "red"))
             for r in named_refs:
-                func_name = r[0].f_code.co_name
+                if isinstance(r[0], ModuleType):
+                    func_name = str(r[0])
+                else:
+                    func_name = r[0].f_code.co_name
                 print("     ", colored(func_name, "green"), colored(r[1], "blue"))
 
         # Indirect reference - recursive case
@@ -165,7 +177,7 @@ def print_frame(frame, event, arg):
     print(colored('Calling: \n func-name: %s\n,  on line: %s, of file: %s from line: %s, of file: %s' % \
                   (func_name, func_line_no, func_filename,
                    caller_line_no, caller_filename), "green"))
-
+    # frame.f_back.f_code.f_lineo
     print(colored("Frame flocals: ", "yellow"))
     print(colored(f_locals.keys(), "blue"))
     print(colored("\nFrame fglob: ", "yellow"))

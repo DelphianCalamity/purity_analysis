@@ -4,6 +4,7 @@ import time
 import sys
 import traceback
 
+
 from purity_analysis.bytecodes_analysis.utils import *
 
 class Tracer:
@@ -22,16 +23,21 @@ class Tracer:
         return next(islice(instructions, int(index / 2), None))
 
     def generic_tracing(self, frame, event, arg):
-        print(colored("!!!!!", "green"), "\n\nEvent:", event, "function: ", frame.f_code.co_name, "arg:", arg)
+        try:
+            print(colored("!!!!!", "green"),
+                  "\n\nEvent:", event, "function: ", frame.f_code.co_name, "arg:", arg, "frame", colored(str(frame), "blue"))
 
-        caller = frame
-        while caller is not None:
-            print(colored("\nFrame", "red"), caller)
-            print(colored("\nLocals", "red"), caller.f_locals)
-            print(colored("\nGlobals", "red"), caller.f_globals)
-            self.lmap[hex(id(caller.f_locals))] = caller
-            caller = caller.f_back
-        pp.pprint(self.lmap)
+            caller = frame
+            # while caller is not None:
+            #     print(colored("\nFrame", "red"), caller)
+            print(colored("\nLocals", "red"), caller.f_locals.keys(), hex(id(caller.f_locals)))
+            print(colored("\nGlobals", "red"), caller.f_globals.keys(), hex(id(caller.f_globals)))
+        #     self.lmap[hex(id(caller.f_locals))] = caller
+        #     caller = caller.f_back
+        # pp.pprint(self.lmap)
+        except:
+            print(colored("\n\nTrace Generic failed\n\n", "red"))
+            print(colored(traceback.format_exc(), "red"))
 
     def trace_bytecodes(self, frame, event, arg):
 
@@ -89,7 +95,10 @@ class Tracer:
                 ref_map = {}
                 ref_map_info = {}
                 for r in named_refs:
-                    func_name = r[0].f_code.co_name
+                    if isinstance(r[0], ModuleType):
+                        func_name = str(r[0])
+                    else:
+                        func_name = r[0].f_code.co_name
                     k = hex(id(r[0]))
                     if k in ref_map:
                         ref_map[k] += r[1]
@@ -119,8 +128,6 @@ class Tracer:
         except:
             print(colored("\n\nTrace Bytecodes failed\n\n", "red"))
             print(colored(traceback.format_exc(), "red"))
-            if caller:
-                print(str(caller))
             sys.settrace(None)
             sys.setprofile(None)
             exit(1)
@@ -133,6 +140,10 @@ class Tracer:
 
             if self.init:
                 self.init = False
+                # Add the locals of all the imported modules todo: insert locals from modules imported at a later stage as well
+                for module in sys.modules.values():
+                    self.lmap[hex(id(vars(module)))] = module
+
                 caller = frame
                 while caller is not None:
                     self.lmap[hex(id(caller.f_locals))] = caller
@@ -149,7 +160,7 @@ class Tracer:
                 self.lmap[hex(id(frame.f_locals))] = frame
 
                 if hex(id(frame)) not in self.functions_visited:
-                    self.functions_visited[hex(id(frame))] = FunctionInfo(str(frame))
+                    self.functions_visited[hex(id(frame))] = FunctionInfo(str(frame), str(frame.f_back))
                 return self.trace_bytecodes
 
         except:
@@ -170,8 +181,10 @@ class Tracer:
         try:
             if self.init:
                 self.init = False
-                # print(colored("AAAAAAAA", "blue"))
-                # time.sleep(10)
+                # Add the locals of all the imported modules todo: insert locals from modules imported at a later stage as well
+                for module in sys.modules.values():
+                    self.lmap[hex(id(vars(module)))] = module
+
                 caller = frame
                 while caller is not None:
                     self.lmap[hex(id(caller.f_locals))] = caller
@@ -213,6 +226,7 @@ class Tracer:
             output = {}
             for frame_id in self.functions_visited:
                 output[frame_id] = {
+                    "caller": self.functions_visited[frame_id].parent_frame,
                     "frame": self.functions_visited[frame_id].frame,
                     "pure": self.functions_visited[frame_id].pure,
                     "mutated_objects": sorted(list(self.functions_visited[frame_id].mutated_objects))
