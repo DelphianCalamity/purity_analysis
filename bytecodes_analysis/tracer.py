@@ -7,12 +7,19 @@ import traceback
 
 from purity_analysis.bytecodes_analysis.utils import *
 
+
+def get_instruction(frame, index):
+    instructions = dis.get_instructions(frame.f_code)
+    return next(islice(instructions, int(index / 2), None))
+
+
 class Tracer:
 
     def __init__(self, ignore=None):
         self.functions_visited = {}
         self.ignore = [] if ignore is None else ignore
         self.lmap = {}
+        self.frame_ids = set()
         self.init = True
 
         # with open("bytecodes_analysis/c_function_annotations.json") as json_file:
@@ -53,6 +60,7 @@ class Tracer:
             if opname == "RETURN_VALUE":
                 print(colored("\n\n\nDELETING FROM LMAP", "green"), frame)
                 self.lmap.pop(hex(id(frame.f_locals)))
+                self.frame_ids.remove(hex(id(frame)))
 
             # print("\ncaller", frame.f_code.co_name, "\nLocals", frame.f_locals, "\nGlobals", frame.f_globals)
             if opname in {'STORE_GLOBAL', 'STORE_NAME'}:
@@ -85,12 +93,16 @@ class Tracer:
                 # Get the referrer to the object that we write from the previous bytecode
                 last_i = frame.f_lasti - 1 if opname == "STORE_ATTR" else frame.f_lasti - 4
                 prev_i = self._get_instruction(frame, last_i)
+                print(colored(prev_i, "yellow"))
                 mutated_obj_address = value_by_key_globals_or_locals(frame, prev_i.argval)
+                if mutated_obj_address == None:
+                    print(colored("\n\nCouldn't find object; Ignoring current 'STORE_ATTR'\n\n", "red"))
+                    return
 
                 print(colored("Starting..\n", "red"))
                 ref_ids = []
                 named_refs = []
-                find_referrers(self.lmap, mutated_obj_address, named_refs, ref_ids, frame)
+                find_referrers(self.lmap, mutated_obj_address, named_refs, ref_ids, self.frame_ids, frame)
 
                 ref_map = {}
                 ref_map_info = {}
@@ -154,10 +166,12 @@ class Tracer:
             # if func_name == FuncType.BASE or \
             #         func_name in self.ignore:
             #     return
-            time.sleep(2)
+            # time.sleep(2)
             if event == EventType.CALL:
                 print_frame(frame, event, arg)
                 self.lmap[hex(id(frame.f_locals))] = frame
+                self.frame_ids.add(hex(id(frame)))
+                print(colored("\n\nInstert", "red"), self.frame_ids)
 
                 if hex(id(frame)) not in self.functions_visited:
                     self.functions_visited[hex(id(frame))] = FunctionInfo(str(frame), str(frame.f_back))
@@ -188,7 +202,7 @@ class Tracer:
                 caller = frame
                 while caller is not None:
                     self.lmap[hex(id(caller.f_locals))] = caller
-                    # pp.pprint(self.lmap)
+                    pp.pprint(self.lmap)
                     # print(colored("\nFrame", "red"), caller)
                     # print(colored("\nLocals", "red"), caller.f_locals)
                     # print(colored("\nGlobals", "red"), caller.f_globals)
