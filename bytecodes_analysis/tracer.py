@@ -1,9 +1,7 @@
 import json
-from itertools import islice
-import time
 import sys
 import traceback
-
+from itertools import islice
 
 from purity_analysis.bytecodes_analysis.utils import *
 
@@ -32,7 +30,8 @@ class Tracer:
     def generic_tracing(self, frame, event, arg):
         try:
             print(colored("!!!!!", "green"),
-                  "\n\nEvent:", event, "function: ", frame.f_code.co_name, "arg:", arg, "frame", colored(str(frame), "blue"))
+                  "\n\nEvent:", event, "function: ", frame.f_code.co_name, "arg:", arg, "frame",
+                  colored(str(frame), "blue"))
 
             caller = frame
             # while caller is not None:
@@ -144,7 +143,6 @@ class Tracer:
             sys.setprofile(None)
             exit(1)
 
-
     def trace_calls(self, frame, event, arg):
         try:
             func_name = frame.f_code.co_name
@@ -210,7 +208,6 @@ class Tracer:
                 # exit(0)
 
             if event == EventType.C_CALL:
-
                 print("\n\nEvent", event, "Frame: ", frame, "line-number", frame.f_lineno, "last-line", frame.f_lasti,
                       "Arg", arg)
                 # print(colored("\n\n\n,Arg", "green"), dir(arg), arg.__name__, "\n\n\n")
@@ -232,7 +229,6 @@ class Tracer:
             sys.settrace(None)
             sys.setprofile(None)
             exit(1)
-
 
     def log_annotations(self, filename):
         try:

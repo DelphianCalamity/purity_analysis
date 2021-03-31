@@ -3,6 +3,7 @@ import dis
 import gc
 import pprint as pp
 from types import ModuleType
+
 from termcolor import colored
 
 
@@ -100,10 +101,10 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids, frame):
     gc.collect()
     referrers = gc.get_referrers(ctypes.cast(int(obj_address, 0), ctypes.py_object).value)
     ref_ids.append(hex(id(referrers)))
-    i=0
+    i = 0
     for ref in referrers:
 
-        print("\n\n\n\n\n\n\n\n\n\n", 'len refs', colored(len(referrers)-i, "green"))
+        print("\n\n\n\n\n\n\n\n\n\n", 'len refs', colored(len(referrers) - i, "green"))
         i += 1
         ref_id = hex(id(ref))
 
