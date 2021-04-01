@@ -25,7 +25,7 @@ _Py_CODEUNIT *get_curr_instruction(PyFrameObject *frame) {
     return instr;
 }
 
-std::string get_str_from_object(PyObject* obj) {
+const char *get_str_from_object(PyObject *obj) {
     PyObject *temp = PyObject_Str(obj);
     temp = PyUnicode_AsASCIIString(temp);
 
@@ -40,10 +40,8 @@ std::string get_str_from_object(PyObject* obj) {
 
     if (nullptr == temp)
         return "";
-    char* str_name = PyBytes_AsString(temp);
-    printf("\n\n-%p-\n", str_name);
-    printf("\nfdsfsdfsdfdsfsdf \n\n-%s-\n\n\n\n\n\n\n", str_name);
-    return std::string(str_name);
+    char *str_name = PyBytes_AsString(temp);
+    return str_name;
 }
 
 void print_bytecode(PyFrameObject *frame, PyObject *dis, PyObject *itertools) {
@@ -113,32 +111,16 @@ int PyTuple_Contains(PyObject *a, PyObject *el) {
     return cmp;
 }
 
-PyObject* get_name_info(Py_ssize_t name_index, PyObject*  cellvars, PyObject* freevars) {
-    PyObject* res;
+PyObject *get_name_info(Py_ssize_t name_index, PyObject *cellvars, PyObject *freevars) {
+    PyObject *res;
     if (name_index < PyTuple_GET_SIZE(cellvars)) {
-         res = PyTuple_GetItem(cellvars, name_index);
+        res = PyTuple_GetItem(cellvars, name_index);
     } else {
-        res = PyTuple_GetItem(freevars, name_index-PyTuple_GET_SIZE(cellvars));
+        res = PyTuple_GetItem(freevars, name_index - PyTuple_GET_SIZE(cellvars));
     }
     return res;
 }
 
-//void debug_info(PyFrameObject *frame) {
-//    Instruction instr(get_curr_instruction(frame));
-//    switch (instr.opcode) {
-//        PyObject *obj;
-////        case STORE_GLOBAL:
-////        case STORE_NAME:
-////        case STORE_DEREF:
-//        case STORE_ATTR:
-//            obj = tos(frame, 1);
-//        case STORE_SUBSCR:
-//            obj = tos(frame, 2);
-//            debug_obj(obj);
-//        default:
-//            printf("other\n");
-//    }
-//}
 void debug_frame_info(PyFrameObject *frame) {
     puts(Color::RED);
     printf("\n\n-------------\nFrame name: ");
@@ -174,7 +156,4 @@ void debug_frame_info(PyFrameObject *frame) {
     puts(Color::DEFAULT);
     PyObject_Print(frame->f_locals, stdout, Py_PRINT_RAW);
     printf("\n");
-
 }
-
-

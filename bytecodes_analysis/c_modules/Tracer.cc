@@ -15,11 +15,10 @@ struct Instruction {
     }
 };
 
-FunctionInfo::FunctionInfo(std::string frame, std::string parent_frame) {
-    this->frame = frame;
-    this->parent_frame = parent_frame;
-    pure = true;
-}
+FunctionInfo::FunctionInfo(const char *frame, const char *parent_frame) :
+    frame(frame),
+    parent_frame(parent_frame),
+    pure(true) {}
 
 Tracer::Tracer() {
     dis = PyImport_ImportModule("dis");
@@ -28,20 +27,21 @@ Tracer::Tracer() {
     initialized = false;
 }
 
-void Tracer::initialize(PyFrameObject* frame) {
+void Tracer::initialize(PyFrameObject *frame) {
     PyFrameObject *caller = frame;
-    while ((PyObject *) caller != nullptr) {
-        PyObject_Print((PyObject *) caller, stdout, Py_PRINT_RAW); printf("\n");
+    while (caller != nullptr) {
+        PyObject_Print((PyObject *) caller, stdout, Py_PRINT_RAW);
+        printf("\n");
         locals_map[caller->f_locals] = (PyObject *) caller;
         caller = caller->f_back;
     }
     // todo: insert locals from modules imported at a later stage as well
     PyObject *modules = PyObject_GetAttrString(sys, "modules");
-    PyObject* vals = PyDict_Values(modules);
+    PyObject *vals = PyDict_Values(modules);
     for (int i = 0; i < PyList_Size(vals); ++i) {
-        PyObject* module = PyList_GET_ITEM(vals, i);
+        PyObject *module = PyList_GET_ITEM(vals, i);
 //        Py_INCREF(module);
-        PyObject* locals = PyObject_GetAttrString(module, "__dict__");
+        PyObject *locals = PyObject_GetAttrString(module, "__dict__");
 //        PyObject_Print(module, stdout, Py_PRINT_RAW); printf("\n");
         locals_map[locals] = module;
     }
@@ -50,9 +50,10 @@ void Tracer::initialize(PyFrameObject* frame) {
 void Tracer::print_locals_map() {
     puts(Color::YELLOW);
     printf("\n---------------------------------\nLocals-Map:\n");
-    for (auto it = locals_map.cbegin(); it != locals_map.cend(); ++it) {
-        printf("%p : ", it->first);
-        PyObject_Print((PyObject *) it->second, stdout, Py_PRINT_RAW); printf("\n");
+    for (auto it : locals_map) {
+        printf("%p : ", it.first);
+        PyObject_Print(it.second, stdout, Py_PRINT_RAW);
+        printf("\n");
     }
     printf("---------------------------------\n\n");
     puts(Color::DEFAULT);
@@ -112,28 +113,28 @@ int Tracer::handle_opcode(PyFrameObject *frame) {
 int Tracer::handle_call(PyFrameObject *frame) {
     debug_frame_info(frame);
     if (functions_info.find(frame) == functions_info.end()) {
-        functions_info.insert({frame, FunctionInfo(get_str_from_object((PyObject *) frame), get_str_from_object((PyObject *) frame->f_back))});
+        functions_info.insert({frame, FunctionInfo(get_str_from_object((PyObject *) frame),
+                                                   get_str_from_object((PyObject *) frame->f_back))});
     }
     tracer->locals_map[frame->f_locals] = (PyObject *) frame; // todo: increase ref for locals otherwise they will be lost
     return 0;
 }
 
 int Tracer::handle_return(PyFrameObject *frame) {
-    std::cout << Color::GREEN;
+    puts(Color::GREEN);
     printf("\n\n\nDELETING FROM LMAP:");
-    std::cout << Color::DEFAULT;
-    PyObject_Print((PyObject *) frame, stdout, Py_PRINT_RAW); printf("\n");
+    puts(Color::DEFAULT);
+    PyObject_Print((PyObject *) frame, stdout, Py_PRINT_RAW);
+    printf("\n");
     tracer->locals_map.erase(frame->f_locals);
     return 0;
 }
 
-int Tracer::call(PyObject *self, PyFrameObject *frame, int what, PyObject *arg) {
-
+int Tracer::trace(PyFrameObject *frame, int what) {
     if (!tracer->initialized) {
         tracer->initialized = true;
         tracer->initialize(frame);
         tracer->print_locals_map();
-        sleep(2);
     }
     frame->f_trace_opcodes = 1;
     switch (what) {
@@ -161,9 +162,9 @@ int Tracer::call(PyObject *self, PyFrameObject *frame, int what, PyObject *arg) 
     return 0;
 }
 
-void Tracer::log_annotations(void) {
-    FILE* out = fopen("annotations.json", "w");
-    for (auto& function_info : functions_info) {
+void Tracer::log_annotations() {
+    FILE *out = fopen("annotations.json", "w");
+    for (auto &function_info : functions_info) {
         printf("\n\n\n\nFrame: %s\n", function_info.second.frame.c_str());
         fprintf(out, "Frame: %s\n", function_info.second.frame.c_str());
         printf("\tParent Frame: %s\n", function_info.second.parent_frame.c_str());
@@ -172,7 +173,7 @@ void Tracer::log_annotations(void) {
         fprintf(out, "\tpure: %s\n", function_info.second.pure ? "true" : "false");
         printf("\tMutated objects:\n");
         fprintf(out, "\tMutated objects:\n");
-        for (auto& obj : function_info.second.mutated_objects) {
+        for (auto &obj : function_info.second.mutated_objects) {
             printf("\t\t%s\n", obj.c_str());
             fprintf(out, "\t\t%s\n", obj.c_str());
         }

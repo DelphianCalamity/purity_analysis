@@ -1,13 +1,13 @@
 #include "Tracer.h"
 
-int Tracer_call(PyObject *obj, PyFrameObject *frame, int what, PyObject *arg) {
-    return tracer->call(obj, frame, what, arg);
+static int Tracer_trace(PyObject *obj, PyFrameObject *frame, int what, PyObject *arg) {
+    return tracer->trace(frame, what);
 }
 
 static PyObject *tracer_start(PyObject *self, PyObject *args) {
     delete tracer;
     tracer = new Tracer;
-    PyEval_SetTrace(Tracer_call, nullptr);
+    PyEval_SetTrace(Tracer_trace, nullptr);
     Py_RETURN_NONE;
 }
 

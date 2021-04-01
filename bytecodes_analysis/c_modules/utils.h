@@ -3,7 +3,6 @@
 
 #include <Python.h>
 #include <frameobject.h>
-#include <string>
 
 PyObject *loadFunc(const char *module, const char *method);
 
@@ -24,9 +23,9 @@ int PyTuple_Contains(PyObject *a, PyObject *el);
 
 void print_bytecode(PyFrameObject *frame, PyObject *dis, PyObject *itertools);
 
-PyObject* get_name_info(Py_ssize_t name_index, PyObject *cellvars, PyObject *);
+PyObject *get_name_info(Py_ssize_t name_index, PyObject *cellvars, PyObject *);
 
-std::string get_str_from_object(PyObject* obj);
+const char *get_str_from_object(PyObject *obj);
 
 #include <iostream>
 
