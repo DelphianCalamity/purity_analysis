@@ -94,3 +94,11 @@ PyObject *ns = f->f_locals;
 if (PyDict_CheckExact(ns))
 err = PyDict_SetItem(ns, name, v);
 else
+
+
+//                    PyObject *temp = PyUnicode_AsASCIIString(caller->f_code->co_name);
+//                    if (nullptr == temp)
+//                        return -1;
+//                    char *str_name = PyByteArray_AsString(temp);
+
+//            PyErr_PrintEx(0);

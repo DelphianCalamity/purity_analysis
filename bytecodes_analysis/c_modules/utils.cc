@@ -14,6 +14,27 @@ _Py_CODEUNIT *get_curr_instruction(PyFrameObject *frame) {
     return instr;
 }
 
+std::string get_str_from_object(PyObject* obj) {
+    PyObject *temp = PyObject_Str(obj);
+    temp = PyUnicode_AsASCIIString(temp);
+
+    printf("------DEBUG------\n");
+    printf("Obj:\n");
+    PyObject_Print(obj, stdout, Py_PRINT_RAW);
+    printf("\n");
+    printf("temp:\n");
+    PyObject_Print(temp, stdout, Py_PRINT_RAW);
+    printf("\n");
+    printf("------     ------\n");
+
+    if (nullptr == temp)
+        return "";
+    char* str_name = PyBytes_AsString(temp);
+    printf("\n\n-%p-\n", str_name);
+    printf("\nfdsfsdfsdfdsfsdf \n\n-%s-\n\n\n\n\n\n\n", str_name);
+    return std::string(str_name);
+}
+
 void print_bytecode(PyFrameObject *frame) {
     PyObject *dis = PyImport_ImportModule("dis");
     PyObject *get_instructions = PyObject_GetAttrString(dis, "get_instructions");
