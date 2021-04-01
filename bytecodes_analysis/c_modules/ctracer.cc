@@ -12,8 +12,8 @@ static PyObject *tracer_start(PyObject *self, PyObject *args) {
 }
 
 static PyObject *tracer_stop(PyObject *self, PyObject *args) {
-    printf("stop\n");
     PyEval_SetTrace(nullptr, nullptr);
+    tracer->log_annotations();
     delete tracer;
     Py_RETURN_NONE;
 }

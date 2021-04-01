@@ -32,6 +32,10 @@ class Tracer{
     int handle_opcode(PyFrameObject *);
     int handle_return(PyFrameObject *);
     int call(PyObject *, PyFrameObject *, int, PyObject *);
+    void initialize(PyFrameObject* frame);
+    void print_locals_map();
+
+    void log_annotations(void);
 };
 
 extern Tracer *tracer;

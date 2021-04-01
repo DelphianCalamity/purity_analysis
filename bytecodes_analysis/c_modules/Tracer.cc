@@ -2,6 +2,7 @@
 #include "utils.h"
 #include <opcode.h>
 
+using namespace std;
 Tracer *tracer;
 
 struct Instruction {
@@ -158,4 +159,23 @@ int Tracer::call(PyObject *self, PyFrameObject *frame, int what, PyObject *arg) 
             break;
     }
     return 0;
+}
+
+void Tracer::log_annotations(void) {
+    FILE* out = fopen("annotations.json", "w");
+    for (auto& function_info : functions_info) {
+        printf("\n\n\n\nFrame: %s\n", function_info.second.frame.c_str());
+        fprintf(out, "Frame: %s\n", function_info.second.frame.c_str());
+        printf("\tParent Frame: %s\n", function_info.second.parent_frame.c_str());
+        fprintf(out, "\tParent Frame: %s\n", function_info.second.parent_frame.c_str());
+        printf("\tpure: %s\n", function_info.second.pure ? "true" : "false");
+        fprintf(out, "\tpure: %s\n", function_info.second.pure ? "true" : "false");
+        printf("\tMutated objects:\n");
+        fprintf(out, "\tMutated objects:\n");
+        for (auto& obj : function_info.second.mutated_objects) {
+            printf("\t\t%s\n", obj.c_str());
+            fprintf(out, "\t\t%s\n", obj.c_str());
+        }
+    }
+    fclose(out);
 }

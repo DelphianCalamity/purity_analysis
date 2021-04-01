@@ -1,5 +1,16 @@
 #include "utils.h"
 
+namespace Color {
+    const char *RED = "\033[31m";
+    const char *GREEN = "\033[32m";
+    const char *YELLOW = "\033[33m";
+    const char *BLUE = "\033[34m";
+    const char *MAGENTA = "\033[35m";
+    const char *CYAN = "\033[36m";
+    const char *WHITE = "\033[37m";
+    const char *DEFAULT = "\033[39m";
+}
+
 PyObject *loadFunc(const char *module, const char *method) {
     PyObject *myModule = PyImport_ImportModule(module);
     return PyObject_GetAttrString(myModule, method);
@@ -35,11 +46,8 @@ std::string get_str_from_object(PyObject* obj) {
     return std::string(str_name);
 }
 
-void print_bytecode(PyFrameObject *frame) {
-    PyObject *dis = PyImport_ImportModule("dis");
+void print_bytecode(PyFrameObject *frame, PyObject *dis, PyObject *itertools) {
     PyObject *get_instructions = PyObject_GetAttrString(dis, "get_instructions");
-
-    PyObject *itertools = PyImport_ImportModule("itertools");
     PyObject *islice = PyObject_GetAttrString(itertools, "islice");
 
     PyObject *args = PyTuple_Pack(1, frame->f_code);
@@ -83,3 +91,90 @@ void debug_obj(PyObject *obj) {
     PyObject *referrers = get_referrers(obj);
     iterate_list_print(referrers);
 }
+
+int PyList_Contains(PyObject *a, PyObject *el) {
+    PyObject *item;
+    Py_ssize_t i;
+    int cmp;
+    for (i = 0, cmp = 0; cmp == 0 && i < PyList_Size(a); ++i) {
+        item = PyList_GET_ITEM(a, i);
+        Py_INCREF(item);
+        cmp = PyObject_RichCompareBool(item, el, Py_EQ);
+        Py_DECREF(item);
+    }
+    return cmp;
+}
+
+int PyTuple_Contains(PyObject *a, PyObject *el) {
+    Py_ssize_t i;
+    int cmp;
+    for (i = 0, cmp = 0; cmp == 0 && i < PyTuple_Size(a); ++i)
+        cmp = PyObject_RichCompareBool(PyTuple_GET_ITEM(a, i), el, Py_EQ);
+    return cmp;
+}
+
+PyObject* get_name_info(Py_ssize_t name_index, PyObject*  cellvars, PyObject* freevars) {
+    PyObject* res;
+    if (name_index < PyTuple_GET_SIZE(cellvars)) {
+         res = PyTuple_GetItem(cellvars, name_index);
+    } else {
+        res = PyTuple_GetItem(freevars, name_index-PyTuple_GET_SIZE(cellvars));
+    }
+    return res;
+}
+
+//void debug_info(PyFrameObject *frame) {
+//    Instruction instr(get_curr_instruction(frame));
+//    switch (instr.opcode) {
+//        PyObject *obj;
+////        case STORE_GLOBAL:
+////        case STORE_NAME:
+////        case STORE_DEREF:
+//        case STORE_ATTR:
+//            obj = tos(frame, 1);
+//        case STORE_SUBSCR:
+//            obj = tos(frame, 2);
+//            debug_obj(obj);
+//        default:
+//            printf("other\n");
+//    }
+//}
+void debug_frame_info(PyFrameObject *frame) {
+    puts(Color::RED);
+    printf("\n\n-------------\nFrame name: ");
+    puts(Color::DEFAULT);
+    PyObject_Print(frame->f_code->co_name, stdout, Py_PRINT_RAW);
+//    PyObject_Print(frame->f_code->co_code, stdout, Py_PRINT_RAW);
+    printf("\n-------------\n\n");
+    printf("CodeObject bytecodes:\n--------\n");
+    PyObject *args = PyTuple_Pack(1, frame->f_code);
+    PyObject *disco = loadFunc("dis", "disco");
+    PyObject_CallObject(disco, args);
+    printf("\n--------\n\n");
+    printf("CodeObject varnames: ");
+    PyObject_Print(frame->f_code->co_varnames, stdout, Py_PRINT_RAW);
+    printf("\n");
+    printf("CodeObject cellvars: ");
+    PyObject_Print(frame->f_code->co_cellvars, stdout, Py_PRINT_RAW);
+    printf("\n");
+    printf("CodeObject freevars: ");
+    PyObject_Print(frame->f_code->co_freevars, stdout, Py_PRINT_RAW);
+    printf("\n");
+    printf("CodeObject globals: ");
+    PyObject_Print(frame->f_code->co_names, stdout, Py_PRINT_RAW);
+    printf("\n");
+
+    puts(Color::BLUE);
+    printf("LOCALS: ");
+    puts(Color::DEFAULT);
+    PyObject_Print(frame->f_locals, stdout, Py_PRINT_RAW);
+    printf("\n");
+    puts(Color::BLUE);
+    printf("GLOBALS: ");
+    puts(Color::DEFAULT);
+    PyObject_Print(frame->f_locals, stdout, Py_PRINT_RAW);
+    printf("\n");
+
+}
+
+
