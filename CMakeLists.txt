@@ -6,8 +6,8 @@ set(CMAKE_CXX_STANDARD 14)
 include_directories(/usr/include/python3.8)
 
 add_executable(purity_analysis
-        bytecodes_analysis/c_modules/ctracer.cc
-        bytecodes_analysis/c_modules/Tracer.cc
-        bytecodes_analysis/c_modules/Tracer.h
-        bytecodes_analysis/c_modules/utils.cc
-        bytecodes_analysis/c_modules/utils.h)
+        c_modules/ctracer.cc
+        c_modules/Tracer.cc
+        c_modules/Tracer.h
+        c_modules/utils.cc
+        c_modules/utils.h)

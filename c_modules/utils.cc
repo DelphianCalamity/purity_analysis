@@ -28,16 +28,6 @@ _Py_CODEUNIT *get_curr_instruction(PyFrameObject *frame) {
 const char *get_str_from_object(PyObject *obj) {
     PyObject *temp = PyObject_Str(obj);
     temp = PyUnicode_AsASCIIString(temp);
-
-    printf("------DEBUG------\n");
-    printf("Obj:\n");
-    PyObject_Print(obj, stdout, Py_PRINT_RAW);
-    printf("\n");
-    printf("temp:\n");
-    PyObject_Print(temp, stdout, Py_PRINT_RAW);
-    printf("\n");
-    printf("------     ------\n");
-
     if (nullptr == temp)
         return "";
     char *str_name = PyBytes_AsString(temp);

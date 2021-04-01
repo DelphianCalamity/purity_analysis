@@ -16,9 +16,9 @@ struct Instruction {
 };
 
 FunctionInfo::FunctionInfo(const char *frame, const char *parent_frame) :
+    pure(true),
     frame(frame),
-    parent_frame(parent_frame),
-    pure(true) {}
+    parent_frame(parent_frame) {}
 
 Tracer::Tracer() {
     dis = PyImport_ImportModule("dis");
@@ -40,9 +40,7 @@ void Tracer::initialize(PyFrameObject *frame) {
     PyObject *vals = PyDict_Values(modules);
     for (int i = 0; i < PyList_Size(vals); ++i) {
         PyObject *module = PyList_GET_ITEM(vals, i);
-//        Py_INCREF(module);
         PyObject *locals = PyObject_GetAttrString(module, "__dict__");
-//        PyObject_Print(module, stdout, Py_PRINT_RAW); printf("\n");
         locals_map[locals] = module;
     }
 }
@@ -68,36 +66,27 @@ int Tracer::handle_opcode(PyFrameObject *frame) {
         case STORE_NAME: {
             PyObject *name = PyTuple_GetItem(frame->f_code->co_names, instr.oparg);
             PyFrameObject *caller = frame;
-            while ((PyObject *) caller != Py_None &&
-                   PyUnicode_CompareWithASCIIString(caller->f_code->co_name, "<module>")) {
-                if (caller->f_locals != nullptr && PyDict_Contains(caller->f_locals, name)) {
-                    break;
-                } else {
-                    functions_info.at(caller).pure = false;
-                    functions_info.at(caller).mutated_objects.insert(get_str_from_object(name));
-                    caller = caller->f_back;
-                }
+            while ((PyObject *) caller != Py_None) {
+                if (!PyUnicode_CompareWithASCIIString(caller->f_code->co_name, "<module>")) break;
+                if (caller->f_locals != nullptr && PyDict_Contains(caller->f_locals, name)) break;
+                functions_info.at(caller).pure = false;
+                functions_info.at(caller).mutated_objects["dummy"].insert(get_str_from_object(name));
+                caller = caller->f_back;
             }
-            break;
         }
+            break;
         case STORE_DEREF: {
             PyObject *name = get_name_info(instr.oparg, frame->f_code->co_cellvars, frame->f_code->co_freevars);
-            PyObject_Print(name, stdout, Py_PRINT_RAW);
             PyFrameObject *caller = frame;
-            while ((PyObject *) caller != Py_None &&
-                   PyUnicode_CompareWithASCIIString(caller->f_code->co_name, "<module>")) {
-                if (PyTuple_Contains(caller->f_code->co_cellvars, name)) {
-                    break;
-                } else {
-                    functions_info.at(caller).pure = false;
-                    functions_info.at(caller).mutated_objects.insert(get_str_from_object(name));
-                    caller = caller->f_back;
-                    PyObject_Print((PyObject *) caller, stdout, Py_PRINT_RAW);
-                    printf("\n");
-                }
+            while ((PyObject *) caller != Py_None) {
+                if (!PyUnicode_CompareWithASCIIString(caller->f_code->co_name, "<module>")) break;
+                if (PyTuple_Contains(caller->f_code->co_cellvars, name)) break;
+                functions_info.at(caller).pure = false;
+                functions_info.at(caller).mutated_objects["dummy"].insert(get_str_from_object(name));
+                caller = caller->f_back;
             }
-            break;
         }
+            break;
         case STORE_ATTR:
             printf("STORE_ATTR\n");
             break;
@@ -122,7 +111,7 @@ int Tracer::handle_call(PyFrameObject *frame) {
 
 int Tracer::handle_return(PyFrameObject *frame) {
     puts(Color::GREEN);
-    printf("\n\n\nDELETING FROM LMAP:");
+    printf("DELETING FROM LMAP:");
     puts(Color::DEFAULT);
     PyObject_Print((PyObject *) frame, stdout, Py_PRINT_RAW);
     printf("\n");
@@ -162,21 +151,40 @@ int Tracer::trace(PyFrameObject *frame, int what) {
     return 0;
 }
 
-void Tracer::log_annotations() {
-    FILE *out = fopen("annotations.json", "w");
-    for (auto &function_info : functions_info) {
-        printf("\n\n\n\nFrame: %s\n", function_info.second.frame.c_str());
-        fprintf(out, "Frame: %s\n", function_info.second.frame.c_str());
-        printf("\tParent Frame: %s\n", function_info.second.parent_frame.c_str());
-        fprintf(out, "\tParent Frame: %s\n", function_info.second.parent_frame.c_str());
-        printf("\tpure: %s\n", function_info.second.pure ? "true" : "false");
-        fprintf(out, "\tpure: %s\n", function_info.second.pure ? "true" : "false");
-        printf("\tMutated objects:\n");
-        fprintf(out, "\tMutated objects:\n");
-        for (auto &obj : function_info.second.mutated_objects) {
-            printf("\t\t%s\n", obj.c_str());
-            fprintf(out, "\t\t%s\n", obj.c_str());
-        }
+void Tracer::log_annotations(const char *filename) {
+    FILE *out = fopen(filename, "w");
+    if (out == nullptr) {
+        log_annotations(stdout);
+    } else {
+        log_annotations(out);
+        fclose(out);
     }
-    fclose(out);
+}
+
+void Tracer::log_annotations(FILE *out) {
+    size_t functions = functions_info.size();
+    fprintf(out, "[\n");
+    for (auto &function_entry : functions_info) {
+        FunctionInfo &functionInfo = function_entry.second;
+        fprintf(out, "  {\n"\
+                            "    \"frame\": \"%s\",\n"\
+                            "    \"parent\": \"%s\",\n"\
+                            "    \"pure\": %s,\n"\
+                            "    \"mutated\": {\n",
+                functionInfo.frame.c_str(),
+                functionInfo.parent_frame.c_str(),
+                functionInfo.pure ? "true" : "false");
+        size_t mutated = functionInfo.mutated_objects.size();
+        for (auto &mutations_entry : functionInfo.mutated_objects) {
+            fprintf(out, "      \"%s\": [\n", mutations_entry.first.c_str());
+            size_t mutations = mutations_entry.second.size();
+            for (auto &obj : mutations_entry.second) {
+                fprintf(out, "        \"%s\"%s\n", obj.c_str(), --mutations ? "," : "");
+            }
+            fprintf(out, "      ]%s\n", --mutated ? "," : "");
+        }
+        fprintf(out, "    }\n"\
+                            "  }%s\n", --functions ? "," : "");
+    }
+    fprintf(out, "]\n");
 }

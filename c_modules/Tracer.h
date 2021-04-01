@@ -12,7 +12,7 @@ struct FunctionInfo {
     bool pure;
     std::string frame;
     std::string parent_frame;
-    std::unordered_set<std::string> mutated_objects;
+    std::unordered_map<std::string, std::unordered_set<std::string>> mutated_objects;
 
     FunctionInfo(const char *frame, const char *parent_frame);
 };
@@ -41,7 +41,9 @@ public:
 
     void print_locals_map();
 
-    void log_annotations();
+    void log_annotations(FILE *out);
+
+    void log_annotations(const char *filename);
 };
 
 extern Tracer *tracer;

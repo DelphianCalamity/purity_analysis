@@ -13,7 +13,16 @@ static PyObject *tracer_start(PyObject *self, PyObject *args) {
 
 static PyObject *tracer_stop(PyObject *self, PyObject *args) {
     PyEval_SetTrace(nullptr, nullptr);
-    tracer->log_annotations();
+
+    const char *arg = nullptr;
+    char *str = nullptr;
+    if (PyArg_ParseTuple(args, "|s", &arg) && arg != nullptr) {
+        str = new char[strlen(arg) + 6]; // strlen(".json") + 1
+        strcpy(str, arg);
+        strcat(str, ".json");
+    }
+    tracer->log_annotations(str);
+    delete[] str;
     delete tracer;
     Py_RETURN_NONE;
 }
