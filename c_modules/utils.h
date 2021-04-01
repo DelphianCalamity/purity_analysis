@@ -17,8 +17,6 @@ void debug_obj(PyObject *obj);
 
 void debug_frame_info(PyFrameObject *frame);
 
-int PyList_Contains(PyObject *a, PyObject *el);
-
 int PyTuple_Contains(PyObject *a, PyObject *el);
 
 void print_bytecode(PyFrameObject *frame, PyObject *dis, PyObject *itertools);
@@ -26,8 +24,6 @@ void print_bytecode(PyFrameObject *frame, PyObject *dis, PyObject *itertools);
 PyObject *get_name_info(Py_ssize_t name_index, PyObject *cellvars, PyObject *);
 
 const char *get_str_from_object(PyObject *obj);
-
-#include <iostream>
 
 namespace Color {
     extern const char *RED;

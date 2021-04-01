@@ -1,6 +1,7 @@
 #include "Tracer.h"
 #include "utils.h"
 #include <opcode.h>
+#include <sstream>
 
 using namespace std;
 Tracer *tracer;
@@ -69,8 +70,12 @@ int Tracer::handle_opcode(PyFrameObject *frame) {
             while ((PyObject *) caller != Py_None) {
                 if (!PyUnicode_CompareWithASCIIString(caller->f_code->co_name, "<module>")) break;
                 if (caller->f_locals != nullptr && PyDict_Contains(caller->f_locals, name)) break;
-                functions_info.at(caller).pure = false;
-                functions_info.at(caller).mutated_objects["dummy"].insert(get_str_from_object(name));
+                auto &function_info = functions_info.at(caller);
+                function_info.pure = false;
+
+                stringstream f_addr;
+                f_addr << caller;
+                function_info.mutated_objects[f_addr.str()].insert(get_str_from_object(name));
                 caller = caller->f_back;
             }
         }
@@ -81,17 +86,63 @@ int Tracer::handle_opcode(PyFrameObject *frame) {
             while ((PyObject *) caller != Py_None) {
                 if (!PyUnicode_CompareWithASCIIString(caller->f_code->co_name, "<module>")) break;
                 if (PyTuple_Contains(caller->f_code->co_cellvars, name)) break;
-                functions_info.at(caller).pure = false;
-                functions_info.at(caller).mutated_objects["dummy"].insert(get_str_from_object(name));
+                auto &function_info = functions_info.at(caller);
+                function_info.pure = false;
+
+                std::stringstream f_addr;
+                f_addr << caller;
+                function_info.mutated_objects[f_addr.str()].insert(get_str_from_object(name));
                 caller = caller->f_back;
             }
         }
             break;
         case STORE_ATTR:
-            printf("STORE_ATTR\n");
-            break;
-        case STORE_SUBSCR:
-            printf("STORE_SUBSCR\n");
+        case STORE_SUBSCR: {
+            puts(Color::RED);
+            printf("Starting..\n");
+            puts(Color::DEFAULT);
+            PyObject *TOS = tos(frame, instr.opcode == STORE_ATTR ? 1 : 2);
+            debug_obj(TOS);
+            /*
+                ref_ids = []
+                named_refs = []
+                find_referrers(self.lmap, mutated_obj_address, named_refs, ref_ids, self.frame_ids, frame)
+
+                ref_map = {}
+                ref_map_info = {}
+                for r in named_refs:
+                    if isinstance(r[0], ModuleType):
+                        func_name = str(r[0])
+                    else:
+                        func_name = r[0].f_code.co_name
+                    k = hex(id(r[0]))
+                    if k in ref_map:
+                        ref_map[k] += r[1]
+                    else:
+                        ref_map[k] = r[1]
+                        ref_map_info[k] = func_name
+
+                print(colored("Refs Map", "red"))
+                for r in ref_map:
+                    print("     ", r, colored(ref_map_info[r], "green"), colored(ref_map[r], "blue"))
+
+                caller = frame
+                while caller is not None and caller.f_code.co_name != FuncType.BASE:
+                    # print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
+                    frame_id = hex(id(caller))
+                    if frame_id in ref_map:
+                        ref_map.pop(frame_id)
+                    if len(ref_map) == 0:
+                        return
+                    # print(colored("Refs Map", "red"))
+                    # for r in ref_map:
+                    #     print("     ", colored(r, "green"), colored(ref_map[r], "blue"))
+
+                    self.functions_visited[frame_id].pure = False
+                    self.functions_visited[frame_id].mutates(json.dumps(ref_map))
+                    caller = caller.f_back
+             */
+        }
             break;
         default:
             break;
@@ -102,8 +153,10 @@ int Tracer::handle_opcode(PyFrameObject *frame) {
 int Tracer::handle_call(PyFrameObject *frame) {
     debug_frame_info(frame);
     if (functions_info.find(frame) == functions_info.end()) {
-        functions_info.insert({frame, FunctionInfo(get_str_from_object((PyObject *) frame),
-                                                   get_str_from_object((PyObject *) frame->f_back))});
+        functions_info.insert({frame, {
+            get_str_from_object((PyObject *) frame),
+            get_str_from_object((PyObject *) frame->f_back)
+        }});
     }
     tracer->locals_map[frame->f_locals] = (PyObject *) frame; // todo: increase ref for locals otherwise they will be lost
     return 0;
@@ -138,13 +191,13 @@ int Tracer::trace(PyFrameObject *frame, int what) {
             }
             break;
         case PyTrace_OPCODE:
-            if (handle_opcode(frame)) {
+            if (handle_opcode(frame) < 0) {
                 return -1;
             }
             break;
         case PyTrace_EXCEPTION:
-            printf("error\n");
-            exit(0);
+            printf("PyTrace_EXCEPTION\n");
+            return -1;
         default:
             break;
     }

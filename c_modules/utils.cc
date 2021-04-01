@@ -57,40 +57,31 @@ PyObject *get_referrers(PyObject *obj) {
     return PyObject_CallObject(get_referrers, args);
 }
 
-void iterate_list_print(PyObject *list) {
-    Py_ssize_t len = PyList_Size(list);
-    printf("----(%ld)----\n", len);
-    for (Py_ssize_t i = 0; i < len; ++i) {
-        PyObject *result = PyList_GET_ITEM(list, i);
-        PyObject_Print(result, stdout, Py_PRINT_RAW);
-        printf("\n");
-    }
-    printf("------------\n");
-}
-
 PyObject *tos(PyFrameObject *frame, int i) {
     PyObject **stack_pointer = frame->f_stacktop;
     return stack_pointer[-i];
 }
 
 void debug_obj(PyObject *obj) {
+    printf("{\n"\
+                  "  \"str\": \"");
     PyObject_Print(obj, stdout, Py_PRINT_RAW);
-    printf("\n");
-    PyObject *referrers = get_referrers(obj);
-    iterate_list_print(referrers);
-}
+    printf("\",\n");
 
-int PyList_Contains(PyObject *a, PyObject *el) {
-    PyObject *item;
-    Py_ssize_t i;
-    int cmp;
-    for (i = 0, cmp = 0; cmp == 0 && i < PyList_Size(a); ++i) {
-        item = PyList_GET_ITEM(a, i);
-        Py_INCREF(item);
-        cmp = PyObject_RichCompareBool(item, el, Py_EQ);
-        Py_DECREF(item);
+    PyObject *referrers = get_referrers(obj);
+    Py_ssize_t len = PyList_Size(referrers);
+    printf("  \"referrers\": {\n"\
+                  "    \"count\": %ld,\n"\
+                  "    \"values\": [\n", len);
+    while (len--) {
+        PyObject *referrer = PyList_GET_ITEM(referrers, len);
+        printf("      \"");
+        PyObject_Print(referrer, stdout, Py_PRINT_RAW);
+        printf("\"%s\n", len ? "," : "");
     }
-    return cmp;
+    printf("    ]\n");
+    printf("  }\n");
+    printf("}\n");
 }
 
 int PyTuple_Contains(PyObject *a, PyObject *el) {
@@ -112,17 +103,18 @@ PyObject *get_name_info(Py_ssize_t name_index, PyObject *cellvars, PyObject *fre
 }
 
 void debug_frame_info(PyFrameObject *frame) {
+    printf("-------------");
     puts(Color::RED);
-    printf("\n\n-------------\nFrame name: ");
+    printf("Frame name:");
     puts(Color::DEFAULT);
     PyObject_Print(frame->f_code->co_name, stdout, Py_PRINT_RAW);
-//    PyObject_Print(frame->f_code->co_code, stdout, Py_PRINT_RAW);
-    printf("\n-------------\n\n");
-    printf("CodeObject bytecodes:\n--------\n");
+    printf("\n");
+    printf("CodeObject bytecodes:\n");
+    printf("--------\n");
     PyObject *args = PyTuple_Pack(1, frame->f_code);
     PyObject *disco = loadFunc("dis", "disco");
     PyObject_CallObject(disco, args);
-    printf("\n--------\n\n");
+    printf("--------\n");
     printf("CodeObject varnames: ");
     PyObject_Print(frame->f_code->co_varnames, stdout, Py_PRINT_RAW);
     printf("\n");
@@ -137,13 +129,14 @@ void debug_frame_info(PyFrameObject *frame) {
     printf("\n");
 
     puts(Color::BLUE);
-    printf("LOCALS: ");
+    printf("LOCALS:");
     puts(Color::DEFAULT);
     PyObject_Print(frame->f_locals, stdout, Py_PRINT_RAW);
     printf("\n");
     puts(Color::BLUE);
-    printf("GLOBALS: ");
+    printf("GLOBALS:");
     puts(Color::DEFAULT);
     PyObject_Print(frame->f_locals, stdout, Py_PRINT_RAW);
     printf("\n");
+    printf("-------------\n");
 }
