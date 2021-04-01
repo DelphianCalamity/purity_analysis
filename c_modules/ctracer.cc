@@ -8,11 +8,13 @@ static PyObject *tracer_start(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(arg
     delete tracer;
     tracer = new Tracer;
     PyEval_SetTrace(Tracer_trace, nullptr);
+    PyEval_SetProfile(Tracer_trace, nullptr);
     Py_RETURN_NONE;
 }
 
 static PyObject *tracer_stop(PyObject *Py_UNUSED(self), PyObject *args) {
     PyEval_SetTrace(nullptr, nullptr);
+    PyEval_SetProfile(nullptr, nullptr);
 
     const char *arg = nullptr;
     char *str = nullptr;

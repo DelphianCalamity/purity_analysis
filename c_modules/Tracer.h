@@ -39,7 +39,11 @@ public:
 
     void initialize(PyFrameObject *frame);
 
+    void find_referrers(std::unordered_map<PyObject *, PyObject *>&, PyObject*, PyFrameObject*, std::unordered_map<PyFrameObject *, std::unordered_set<std::string>>&);
+
     void print_locals_map();
+
+    void print_refs_map(std::unordered_map<PyFrameObject *, std::unordered_set<std::string>>&);
 
     void log_annotations(FILE *out);
 

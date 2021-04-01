@@ -58,6 +58,24 @@ void Tracer::print_locals_map() {
     puts(Color::DEFAULT);
 }
 
+void Tracer::print_refs_map(std::unordered_map<PyFrameObject *, std::unordered_set<std::string>>& refs_map) {
+    puts(Color::GREEN);
+    printf("\n---------------------------------\nLocals-Map:\n");
+    for (auto it : refs_map) {
+        printf("%p : ", it.first);
+//        PyObject_Print(it.second, stdout, Py_PRINT_RAW);
+        printf("\n");
+    }
+    printf("---------------------------------\n\n");
+    puts(Color::DEFAULT);
+}
+
+void find_referrers(std::unordered_map<PyObject *, PyObject *>&, PyObject*, PyFrameObject*, std::unordered_map<PyFrameObject *, std::unordered_set<std::string>>&) {
+
+    return;
+}
+
+
 int Tracer::handle_opcode(PyFrameObject *frame) {
     Instruction instr(get_curr_instruction(frame));
     print_bytecode(frame, tracer->dis, tracer->itertools);
@@ -103,45 +121,31 @@ int Tracer::handle_opcode(PyFrameObject *frame) {
             puts(Color::DEFAULT);
             PyObject *TOS = tos(frame, instr.opcode == STORE_ATTR ? 1 : 2);
             debug_obj(TOS);
-            /*
-                ref_ids = []
-                named_refs = []
-                find_referrers(self.lmap, mutated_obj_address, named_refs, ref_ids, self.frame_ids, frame)
 
-                ref_map = {}
-                ref_map_info = {}
-                for r in named_refs:
-                    if isinstance(r[0], ModuleType):
-                        func_name = str(r[0])
-                    else:
-                        func_name = r[0].f_code.co_name
-                    k = hex(id(r[0]))
-                    if k in ref_map:
-                        ref_map[k] += r[1]
-                    else:
-                        ref_map[k] = r[1]
-                        ref_map_info[k] = func_name
+            std::unordered_map<PyFrameObject *, std::unordered_set<std::string>> named_refs_map;
+            find_referrers(tracer->locals_map, TOS, frame, named_refs_map);
+            print_refs_map(named_refs_map);
 
-                print(colored("Refs Map", "red"))
-                for r in ref_map:
-                    print("     ", r, colored(ref_map_info[r], "green"), colored(ref_map[r], "blue"))
 
-                caller = frame
-                while caller is not None and caller.f_code.co_name != FuncType.BASE:
-                    # print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
-                    frame_id = hex(id(caller))
-                    if frame_id in ref_map:
-                        ref_map.pop(frame_id)
-                    if len(ref_map) == 0:
-                        return
-                    # print(colored("Refs Map", "red"))
-                    # for r in ref_map:
-                    #     print("     ", colored(r, "green"), colored(ref_map[r], "blue"))
+            PyFrameObject *caller = frame;
+            while ((PyObject *) caller != Py_None) {
+                if (!PyUnicode_CompareWithASCIIString(caller->f_code->co_name, "<module>")) break;
 
-                    self.functions_visited[frame_id].pure = False
-                    self.functions_visited[frame_id].mutates(json.dumps(ref_map))
-                    caller = caller.f_back
-             */
+                if (named_refs_map.find(caller) != named_refs_map.end()) {
+                    named_refs_map.erase(caller);
+                }
+                if (named_refs_map.empty()) {
+                    break;
+                }
+
+                auto &function_info = functions_info.at(caller);
+                function_info.pure = false;
+
+                stringstream f_addr;
+                f_addr << caller;
+                function_info.mutated_objects[f_addr.str()].insert(get_str_from_object(name));
+                caller = caller->f_back;
+            }
         }
             break;
         default:
@@ -198,6 +202,11 @@ int Tracer::trace(PyFrameObject *frame, int what) {
         case PyTrace_EXCEPTION:
             printf("PyTrace_EXCEPTION\n");
             return -1;
+        case PyTrace_C_CALL:
+            printf("PyTrace_C_CALL\n");
+            PyObject_Print((PyObject *) frame, stdout, Py_PRINT_RAW);
+            printf("\n");
+            break;
         default:
             break;
     }
