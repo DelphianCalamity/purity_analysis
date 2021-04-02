@@ -11,6 +11,13 @@ namespace Color {
     const char *DEFAULT = "\033[39m";
 }
 
+PyObject *frame_getlocals(PyFrameObject *f) {
+    if (PyFrame_FastToLocalsWithError(f) < 0)
+        return nullptr;
+    Py_INCREF(f->f_locals);
+    return f->f_locals;
+}
+
 PyObject *loadFunc(const char *module, const char *method) {
     PyObject *myModule = PyImport_ImportModule(module);
     return PyObject_GetAttrString(myModule, method);
@@ -49,12 +56,14 @@ void print_bytecode(PyFrameObject *frame, PyObject *dis, PyObject *itertools) {
     printf("\n");
 }
 
-PyObject *get_referrers(PyObject *obj) {
-    PyObject *gc = PyImport_ImportModule("gc");
+PyObject *get_referrers(PyObject *obj, PyObject *gc) {
+
     PyObject *get_referrers = PyObject_GetAttrString(gc, "get_referrers");
 
     PyObject *args = PyTuple_Pack(1, obj);
-    return PyObject_CallObject(get_referrers, args);
+    PyObject *res = PyObject_CallObject(get_referrers, args);
+    Py_DecRef(args);
+    return res;
 }
 
 PyObject *tos(PyFrameObject *frame, int i) {
@@ -68,7 +77,7 @@ void debug_obj(PyObject *obj) {
     PyObject_Print(obj, stdout, Py_PRINT_RAW);
     printf("\",\n");
 
-    PyObject *referrers = get_referrers(obj);
+    PyObject *referrers = get_referrers(obj, nullptr);
     Py_ssize_t len = PyList_Size(referrers);
     printf("  \"referrers\": {\n"\
                   "    \"count\": %ld,\n"\
@@ -136,7 +145,7 @@ void debug_frame_info(PyFrameObject *frame) {
     puts(Color::BLUE);
     printf("GLOBALS:");
     puts(Color::DEFAULT);
-    PyObject_Print(frame->f_locals, stdout, Py_PRINT_RAW);
+    PyObject_Print(frame->f_globals, stdout, Py_PRINT_RAW);
     printf("\n");
     printf("-------------\n");
 }

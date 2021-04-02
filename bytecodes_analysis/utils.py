@@ -114,10 +114,10 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids, frame):
 
         ref_ids.append(ref_id)
         print(colored("REF-ID", "yellow"), hex(id(ref)), type(ref));
-        if isinstance(ref, dict):
-            pp.pprint(ref.keys())
-        else:
-            pp.pprint(ref)
+        # if isinstance(ref, dict):
+        #     pp.pprint(ref.keys())
+        # else:
+        #     pp.pprint(ref)
         # Direct Reference - base case
         if ref_id in lmap:
             f = lmap[ref_id]
@@ -162,11 +162,6 @@ def print_frame(frame, event, arg):
     print(colored("CodeObject cellvars: ", "red"), co.co_cellvars)
     print(colored("CodeObject freevars: ", "red"), co.co_freevars)
     print(colored("CodeObject globals: ", "red"), co.co_names)
-    print(colored("valuestack: ", "yellow"), frame.f_valuestack)
-
-    # print("CodeObject consts: ", co.co_consts)
-    # print("CodeObject stacksize: ", co.co_stacksize)
-    # print("CodeObject code: ", co.co_code)
     print("CodeObject bytecodes: ", dis.disco(co))
     f_locals = frame.f_locals
     f_globals = frame.f_globals
@@ -185,7 +180,7 @@ def print_frame(frame, event, arg):
                   (func_name, func_line_no, func_filename,
                    caller_line_no, caller_filename), "green"))
     # frame.f_back.f_code.f_lineo
-    print(colored("Frame flocals: ", "yellow"))
-    print(colored(f_locals.keys(), "blue"))
-    print(colored("\nFrame fglob: ", "yellow"))
-    print(colored(f_globals.keys(), "blue"))
+    # print(colored("Frame flocals: ", "yellow"))
+    # print(colored(f_locals.keys(), "blue"))
+    # print(colored("\nFrame fglob: ", "yellow"))
+    # print(colored(f_globals.keys(), "blue"))

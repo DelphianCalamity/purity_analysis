@@ -25,6 +25,7 @@ Tracer::Tracer() {
     dis = PyImport_ImportModule("dis");
     itertools = PyImport_ImportModule("itertools");
     sys = PyImport_ImportModule("sys");
+    gc = PyImport_ImportModule("gc");
     initialized = false;
 }
 
@@ -58,10 +59,10 @@ void Tracer::print_locals_map() {
     puts(Color::DEFAULT);
 }
 
-void Tracer::print_refs_map(std::unordered_map<PyFrameObject *, std::unordered_set<std::string>>& refs_map) {
+void Tracer::print_refs_map(std::unordered_map<PyFrameObject *, std::unordered_set<std::string>> &refs_map) {
     puts(Color::GREEN);
-    printf("\n---------------------------------\nLocals-Map:\n");
-    for (auto it : refs_map) {
+    printf("\n---------------------------------\nRefs-Map:\n");
+    for (const auto &it : refs_map) {
         printf("%p : ", it.first);
 //        PyObject_Print(it.second, stdout, Py_PRINT_RAW);
         printf("\n");
@@ -70,16 +71,83 @@ void Tracer::print_refs_map(std::unordered_map<PyFrameObject *, std::unordered_s
     puts(Color::DEFAULT);
 }
 
-void find_referrers(std::unordered_map<PyObject *, PyObject *>&, PyObject*, PyFrameObject*, std::unordered_map<PyFrameObject *, std::unordered_set<std::string>>&) {
+unordered_set<string> keys_by_value_locals(PyObject *obj, PyObject *locals) {
+    unordered_set<string> res;
 
-    return;
+    PyObject *key, *value;
+    Py_ssize_t pos = 0;
+    while (PyDict_Next(locals, &pos, &key, &value)) {
+        if (obj == value) {
+            res.insert(get_str_from_object(key));
+        }
+    }
+    return res;
 }
 
+void Tracer::find_referrers(PyObject *obj,
+                            std::unordered_map<PyFrameObject *, std::unordered_set<std::string>> &refs_map,
+                            std::unordered_set<PyObject *> &excluded_ids) {
+    PyObject_CallMethod(gc, "collect", nullptr);
+
+    puts(Color::YELLOW);
+    printf("Object %p:\n", obj);
+    PyObject_Print((PyObject *) obj, stdout, Py_PRINT_RAW);
+    printf("\n");
+    puts(Color::DEFAULT);
+    PyObject *referrers = get_referrers(obj, gc);
+    excluded_ids.insert(referrers);
+    puts(Color::RED);
+    printf("Referrers:\n");
+    PyObject_Print((PyObject *) referrers, stdout, Py_PRINT_RAW);
+    printf("\n");
+    puts(Color::DEFAULT);
+    puts(Color::GREEN);
+    for (int i = 0; i < PyList_Size(referrers); ++i) {
+        PyObject *referrer = PyList_GET_ITEM(referrers, i);
+
+        if (excluded_ids.find(referrer) != excluded_ids.end()) continue;
+        if (frame_ids.find(referrer) != frame_ids.end()) continue;
+        printf("Excluded ids:\n");
+        for (auto id : excluded_ids) {
+            printf("%p ", id);
+        }
+        printf("\n");
+        excluded_ids.insert(referrer);
+        printf("REF-ID: %p, ", referrer);
+        PyObject_Print((PyObject *) Py_TYPE(referrer), stdout, Py_PRINT_RAW);
+        printf("\n");
+
+        //Direct Reference - base case
+//        print_locals_map();
+        if (locals_map.find(referrer) != locals_map.end()) {
+            PyObject *r = locals_map[referrer];
+            printf("Found in L-map\n");
+            PyObject *locals;
+            if (PyModule_Check(r)) {
+                locals = PyObject_GetAttrString(r, "__dict__");
+            } else {
+                locals = ((PyFrameObject *) r)->f_locals;
+            }
+            unordered_set<string> keys = keys_by_value_locals(obj, locals);
+            // TODO: PyObject*
+            refs_map[(PyFrameObject *) r].insert(keys.begin(), keys.end());
+        } else {
+            //Indirect reference - recursive case
+            //trace back indirect referrers till we reach locals
+            find_referrers(referrer, refs_map, excluded_ids);
+        }
+//        del excluded_ids[-1];
+        excluded_ids.erase(referrer);
+    }
+//    del excluded_ids[-1];
+    excluded_ids.erase(referrers);
+    Py_DecRef(referrers);
+    puts(Color::DEFAULT);
+}
 
 int Tracer::handle_opcode(PyFrameObject *frame) {
     Instruction instr(get_curr_instruction(frame));
-    print_bytecode(frame, tracer->dis, tracer->itertools);
-
+    print_bytecode(frame, dis, itertools);
     switch (instr.opcode) {
         case STORE_GLOBAL:
         case STORE_NAME: {
@@ -88,7 +156,7 @@ int Tracer::handle_opcode(PyFrameObject *frame) {
             while ((PyObject *) caller != Py_None) {
                 if (!PyUnicode_CompareWithASCIIString(caller->f_code->co_name, "<module>")) break;
                 if (caller->f_locals != nullptr && PyDict_Contains(caller->f_locals, name)) break;
-                auto &function_info = functions_info.at(caller);
+                auto &function_info = functions_info.at((PyObject *) caller);
                 function_info.pure = false;
 
                 stringstream f_addr;
@@ -101,10 +169,11 @@ int Tracer::handle_opcode(PyFrameObject *frame) {
         case STORE_DEREF: {
             PyObject *name = get_name_info(instr.oparg, frame->f_code->co_cellvars, frame->f_code->co_freevars);
             PyFrameObject *caller = frame;
+//            unordered_set<basic_string<char>> mutated;
             while ((PyObject *) caller != Py_None) {
                 if (!PyUnicode_CompareWithASCIIString(caller->f_code->co_name, "<module>")) break;
                 if (PyTuple_Contains(caller->f_code->co_cellvars, name)) break;
-                auto &function_info = functions_info.at(caller);
+                auto &function_info = functions_info.at((PyObject *) caller);
                 function_info.pure = false;
 
                 std::stringstream f_addr;
@@ -112,20 +181,28 @@ int Tracer::handle_opcode(PyFrameObject *frame) {
                 function_info.mutated_objects[f_addr.str()].insert(get_str_from_object(name));
                 caller = caller->f_back;
             }
+//            functions_info.at(caller)
         }
             break;
         case STORE_ATTR:
         case STORE_SUBSCR: {
+            for (auto f : frame_ids) {
+                frame_getlocals((PyFrameObject *) f);
+            }
+
             puts(Color::RED);
             printf("Starting..\n");
+            PyObject_Print((PyObject *) frame->f_locals, stdout, Py_PRINT_RAW);
+            printf("\n");
             puts(Color::DEFAULT);
             PyObject *TOS = tos(frame, instr.opcode == STORE_ATTR ? 1 : 2);
-            debug_obj(TOS);
+//            debug_obj(TOS);
 
+            std::unordered_set<PyObject *> excluded_ids;
             std::unordered_map<PyFrameObject *, std::unordered_set<std::string>> named_refs_map;
-            find_referrers(tracer->locals_map, TOS, frame, named_refs_map);
-            print_refs_map(named_refs_map);
 
+            find_referrers(TOS, named_refs_map, excluded_ids);
+            print_refs_map(named_refs_map);
 
             PyFrameObject *caller = frame;
             while ((PyObject *) caller != Py_None) {
@@ -138,12 +215,14 @@ int Tracer::handle_opcode(PyFrameObject *frame) {
                     break;
                 }
 
-                auto &function_info = functions_info.at(caller);
+                auto &function_info = functions_info.at((PyObject *) caller);
                 function_info.pure = false;
 
-                stringstream f_addr;
-                f_addr << caller;
-                function_info.mutated_objects[f_addr.str()].insert(get_str_from_object(name));
+                for (const auto &ref : named_refs_map) {
+                    stringstream f_addr;
+                    f_addr << ref.first;
+                    function_info.mutated_objects[f_addr.str()].insert(ref.second.begin(), ref.second.end());
+                }
                 caller = caller->f_back;
             }
         }
@@ -155,14 +234,20 @@ int Tracer::handle_opcode(PyFrameObject *frame) {
 }
 
 int Tracer::handle_call(PyFrameObject *frame) {
+
+    if (frame->f_locals == nullptr) {
+        frame_getlocals(frame); // TODO DECREF?
+    }
+
     debug_frame_info(frame);
-    if (functions_info.find(frame) == functions_info.end()) {
-        functions_info.insert({frame, {
+    if (functions_info.find((PyObject *) frame) == functions_info.end()) {
+        functions_info.insert({(PyObject *) frame, {
             get_str_from_object((PyObject *) frame),
             get_str_from_object((PyObject *) frame->f_back)
         }});
     }
-    tracer->locals_map[frame->f_locals] = (PyObject *) frame; // todo: increase ref for locals otherwise they will be lost
+    locals_map[frame->f_locals] = (PyObject *) frame; // todo: increase ref for locals otherwise they will be lost
+    frame_ids.insert((PyObject *) frame);
     return 0;
 }
 
@@ -172,15 +257,16 @@ int Tracer::handle_return(PyFrameObject *frame) {
     puts(Color::DEFAULT);
     PyObject_Print((PyObject *) frame, stdout, Py_PRINT_RAW);
     printf("\n");
-    tracer->locals_map.erase(frame->f_locals);
+    locals_map.erase(frame->f_locals);
+    frame_ids.erase((PyObject *) frame);
     return 0;
 }
 
 int Tracer::trace(PyFrameObject *frame, int what) {
-    if (!tracer->initialized) {
-        tracer->initialized = true;
-        tracer->initialize(frame);
-        tracer->print_locals_map();
+    if (!initialized) {
+        initialized = true;
+        initialize(frame);
+        print_locals_map();
     }
     frame->f_trace_opcodes = 1;
     switch (what) {

@@ -8,7 +8,7 @@ static PyObject *tracer_start(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(arg
     delete tracer;
     tracer = new Tracer;
     PyEval_SetTrace(Tracer_trace, nullptr);
-    PyEval_SetProfile(Tracer_trace, nullptr);
+//    PyEval_SetProfile(Tracer_trace, nullptr);
     Py_RETURN_NONE;
 }
 
@@ -29,9 +29,18 @@ static PyObject *tracer_stop(PyObject *Py_UNUSED(self), PyObject *args) {
     Py_RETURN_NONE;
 }
 
+static PyObject *tracer_tos(PyObject *Py_UNUSED(self), PyObject *args) {
+    auto frame = (PyFrameObject *) PyTuple_GetItem(args, 0);
+    long i = PyLong_AsLong(PyTuple_GetItem(args, 1));
+    PyObject *tos = frame->f_stacktop[-i];
+    Py_IncRef(tos);
+    return tos;
+}
+
 static PyMethodDef Tracer_methods[] = {
     {"start", tracer_start, METH_VARARGS, PyDoc_STR("Start the tracer")},
     {"stop",  tracer_stop,  METH_VARARGS, PyDoc_STR("Stop the tracer")},
+    {"tos",   tracer_tos,   METH_VARARGS, PyDoc_STR("TOS")},
     {nullptr, nullptr, 0, nullptr}
 };
 

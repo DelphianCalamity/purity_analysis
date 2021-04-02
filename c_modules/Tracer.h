@@ -19,7 +19,9 @@ struct FunctionInfo {
 
 class Tracer {
     std::unordered_map<PyObject *, PyObject *> locals_map;
-    std::unordered_map<PyFrameObject *, FunctionInfo> functions_info;
+    // [Module | PyFrameObject] -> FunctionInfo
+    std::unordered_map<PyObject *, FunctionInfo> functions_info;
+    std::unordered_set<PyObject *> frame_ids;
 
 public:
     Tracer();
@@ -27,23 +29,25 @@ public:
     PyObject *dis;
     PyObject *itertools;
     PyObject *sys;
+    PyObject *gc;
     bool initialized;
 
     int handle_call(PyFrameObject *);
 
     int handle_opcode(PyFrameObject *);
 
-    static int handle_return(PyFrameObject *);
+    int handle_return(PyFrameObject *);
 
     int trace(PyFrameObject *frame, int what);
 
     void initialize(PyFrameObject *frame);
 
-    void find_referrers(std::unordered_map<PyObject *, PyObject *>&, PyObject*, PyFrameObject*, std::unordered_map<PyFrameObject *, std::unordered_set<std::string>>&);
+    void find_referrers(PyObject *, std::unordered_map<PyFrameObject *, std::unordered_set<std::string>> &,
+                        std::unordered_set<PyObject *> &);
 
     void print_locals_map();
 
-    void print_refs_map(std::unordered_map<PyFrameObject *, std::unordered_set<std::string>>&);
+    static void print_refs_map(std::unordered_map<PyFrameObject *, std::unordered_set<std::string>> &);
 
     void log_annotations(FILE *out);
 

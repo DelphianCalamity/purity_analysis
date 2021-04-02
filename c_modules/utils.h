@@ -4,12 +4,13 @@
 #include <Python.h>
 #include <frameobject.h>
 
+PyObject *frame_getlocals(PyFrameObject *f);
+
 PyObject *loadFunc(const char *module, const char *method);
 
 _Py_CODEUNIT *get_curr_instruction(PyFrameObject *frame);
 
-
-PyObject *get_referrers(PyObject *obj);
+PyObject *get_referrers(PyObject *obj, PyObject *gc);
 
 PyObject *tos(PyFrameObject *frame, int i);
 

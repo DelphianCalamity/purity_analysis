@@ -3,6 +3,7 @@ import sys
 import traceback
 from itertools import islice
 
+import ctracer
 from purity_analysis.bytecodes_analysis.utils import *
 
 
@@ -90,10 +91,15 @@ class Tracer:
 
             elif opname in {"STORE_ATTR", "STORE_SUBSCR"}:
                 # Get the referrer to the object that we write from the previous bytecode
-                last_i = frame.f_lasti - 1 if opname == "STORE_ATTR" else frame.f_lasti - 4
-                prev_i = self._get_instruction(frame, last_i)
-                print(colored(prev_i, "yellow"))
-                mutated_obj_address = value_by_key_globals_or_locals(frame, prev_i.argval)
+                # last_i = frame.f_lasti - 1 if opname == "STORE_ATTR" else frame.f_lasti - 4
+                # prev_i = self._get_instruction(frame, last_i)
+                # print(colored(prev_i, "yellow"))
+                # mutated_obj_address = value_by_key_globals_or_locals(frame, prev_i.argval)
+                i = 1 if opname == "STORE_ATTR" else 2
+                tos = ctracer.tos(frame, i)
+                mutated_obj_address = hex(id(tos))
+                # print("fdsfsdfsdfdsfsdfa", tos)
+                del tos
                 if mutated_obj_address == None:
                     print(colored("\n\nCouldn't find object; Ignoring current 'STORE_ATTR'\n\n", "red"))
                     return
