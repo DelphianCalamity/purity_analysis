@@ -4,3 +4,6 @@ __pycache__
 venv/
 *.pyc
 tests/*.annotations
+ctracer.egg-info*
+build
+ctracer.cpython*.so

@@ -162,7 +162,7 @@ def print_frame(frame, event, arg):
     print(colored("CodeObject cellvars: ", "red"), co.co_cellvars)
     print(colored("CodeObject freevars: ", "red"), co.co_freevars)
     print(colored("CodeObject globals: ", "red"), co.co_names)
-    print(colored("valuestack: ", "yellow"), frame.f_valuestack)
+    #print(colored("valuestack: ", "yellow"), frame.f_valuestack)
 
     # print("CodeObject consts: ", co.co_consts)
     # print("CodeObject stacksize: ", co.co_stacksize)

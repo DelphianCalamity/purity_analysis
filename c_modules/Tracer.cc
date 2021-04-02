@@ -143,7 +143,7 @@ int Tracer::handle_opcode(PyFrameObject *frame) {
 
                 stringstream f_addr;
                 f_addr << caller;
-                function_info.mutated_objects[f_addr.str()].insert(get_str_from_object(name));
+                //function_info.mutated_objects[f_addr.str()].insert(get_str_from_object(name));
                 caller = caller->f_back;
             }
         }

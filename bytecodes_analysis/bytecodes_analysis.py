@@ -62,6 +62,6 @@ def analyze(source_input, ignore=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input', type=str, help='Input file', required=True)
+    parser.add_argument('--input', type=str, help='Name of test input file from tests directory (e.g., `pure_basic`)', required=True)
     args = parser.parse_args()
     analyze(args.input)
