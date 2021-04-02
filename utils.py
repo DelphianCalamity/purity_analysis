@@ -2,6 +2,7 @@ import ctypes
 import dis
 import gc
 import pprint as pp
+from collections import defaultdict
 from types import ModuleType
 
 from termcolor import colored
@@ -18,11 +19,6 @@ class EventType:
     RETURN = 'return'
 
 
-# class FramesInfo:
-#     def __init__(self):
-#         self.lmap = {} # local address -> frame
-#         self.gmap = {} # global address -> frame
-#         self.initial_frame = None
 # StoreOps = {
 #     'STORE_ATTR',
 #     'STORE_DEREF',
@@ -34,46 +30,18 @@ class EventType:
 
 
 class FunctionInfo:
-    def __init__(self, frame=None, parent_frame=None):
-        self.frame = frame
-        self.parent_frame = parent_frame
+    def __init__(self, frame=None):
+        self.func_name = frame.f_code.co_name
+        self.func_line_no = frame.f_lineno
+        self.func_filename = frame.f_code.co_filename
+        frame = frame.f_back
+        self.pfunc_name = frame.f_code.co_name
+        self.pfunc_line_no = frame.f_lineno
+        self.pfunc_filename = frame.f_code.co_filename
         self.pure = True
         # nonlocal vars only
-        self.mutated_objects = set()
+        self.mutated_objects = defaultdict(set)
 
-    def mutates(self, var_name):
-        self.mutated_objects.add(var_name)
-
-
-# def locals_inverse(locals):
-#     # {address : [ref_name1, ref_name2, ...]}
-#     l_map = {}
-#     for l in locals:
-#         id_ = hex(id(locals[l]))
-#         if id_ in l_map:
-#             l_map[id_].append(l)
-#         else:
-#             l_map[id_] = [l]
-#     l_map[hex(id(locals))] = ["locals_"]
-#     return l_map
-#
-# def globals_inverse(globals):
-#     g_map = {}
-#     for g in globals:
-#         id_ = hex(id(globals[g]))
-#         if id_ in g_map:
-#             g_map[id_].append(g)
-#         else:
-#             g_map[id_] = [g]
-#     g_map[hex(id(globals))] = ["globals_"]
-#     return g_map
-#
-# def keys_by_value_in_globals(globals, value):
-#     res = []
-#     for key in globals:
-#         if hex(id(globals[key])) == value:
-#             res.append(key)
-#     return res
 
 def keys_by_value_locals(locals, value):
     res = []
@@ -97,7 +65,7 @@ def value_by_key_globals_or_locals(frame, var):
     return var_address
 
 
-def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids, frame):
+def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids):
     gc.collect()
     referrers = gc.get_referrers(ctypes.cast(int(obj_address, 0), ctypes.py_object).value)
     ref_ids.append(hex(id(referrers)))
@@ -113,7 +81,7 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids, frame):
             continue
 
         ref_ids.append(ref_id)
-        print(colored("REF-ID", "yellow"), hex(id(ref)), type(ref));
+        print(colored("REF-ID", "yellow"), hex(id(ref)), type(ref))
         # if isinstance(ref, dict):
         #     pp.pprint(ref.keys())
         # else:
@@ -121,16 +89,21 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids, frame):
         # Direct Reference - base case
         if ref_id in lmap:
             f = lmap[ref_id]
-            print(colored("Found in L-map", "red"));
+            print(colored("Found in L-map", "red"))
             pp.pprint(lmap[ref_id])
             # print("Locals", f.f_locals)
             if isinstance(f, ModuleType):
-                named_refs += [(f, keys_by_value_locals(vars(f), obj_address))]
+                locals_ = vars(f)
             else:
-                named_refs += [(f, keys_by_value_locals(f.f_locals, obj_address))]
+                locals_ = f.f_locals
+            keys = keys_by_value_locals(locals_, obj_address)
+            if id(f) in named_refs:
+                named_refs[id(f)][1] += keys
+            else:
+                named_refs[id(f)] = [f, keys]
 
             print(colored("Named Referrers", "red"))
-            for r in named_refs:
+            for r in named_refs.values():
                 if isinstance(r[0], ModuleType):
                     func_name = str(r[0])
                 else:
@@ -140,7 +113,7 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids, frame):
         # Indirect reference - recursive case
         # trace back indirect referrers till we reach locals
         else:
-            find_referrers(lmap, ref_id, named_refs, ref_ids, frame_ids, frame)
+            find_referrers(lmap, ref_id, named_refs, ref_ids, frame_ids)
 
         del ref_ids[-1]
     del ref_ids[-1]

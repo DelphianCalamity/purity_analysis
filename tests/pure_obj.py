@@ -1,3 +1,12 @@
+import sys
+
+from purity_analysis import Tracer
+
+tracer = Tracer(['Person'])
+sys.settrace(tracer.trace_calls)
+sys.setprofile(tracer.trace_c_calls)
+
+
 class Person:
     def __init__(self):
         self.name = None
@@ -28,3 +37,7 @@ def main():
 
 
 main()
+
+sys.settrace(None)
+sys.setprofile(None)
+tracer.log_annotations(__file__)

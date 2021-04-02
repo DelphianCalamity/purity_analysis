@@ -1,10 +1,9 @@
 import sys
 
+from purity_analysis.bytecodes_analysis.tracer import Tracer
 # import pandas as pd
 # from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-
-from purity_analysis import Tracer
 
 # df = pd.read_csv('purity_analysis/tests/data.csv')
 

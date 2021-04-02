@@ -1,3 +1,5 @@
+# This script is unstable; avoid executing this; running the tests manually is better for now
+
 import argparse
 import json
 import os
@@ -51,7 +53,7 @@ tracer.log_annotations(__file__)
 def analyze(source_input, ignore=None):
     ignore = [] if ignore is None else ignore
     app = BytecodesAnalysis(source_input)
-    app.inject_tracing_code(ignore)
+    # app.inject_tracing_code(ignore)
     app.execute()
     with open(app.source_path + ".annotations") as json_file:
         annotations = json.load(json_file)

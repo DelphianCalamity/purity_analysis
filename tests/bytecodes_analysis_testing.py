@@ -1,17 +1,6 @@
 import unittest
 
-from bytecodes_analysis import analyze
-
-
-# def strip_address(x):
-#     for func_name in x:
-#         func = x[func_name]
-#         mutated_objects = func['mutated_objects']
-#         for i,_ in enumerate(mutated_objects):
-#             # mutated_objects[i] = tuple(mutated_objects[i][0], mutated_objects[i][1])
-#             mutated_objects[i] = mutated_objects[i][1]
-#         print(func)
-#     return x
+from purity_analysis.bytecodes_analysis import analyze
 
 
 class TestBytecodesAnalysis(unittest.TestCase):

@@ -1,7 +1,14 @@
-# from bytecodes_analysis.tracer import Tracer
-# tracer = Tracer(['Person', 'Boo'])
-# sys.settrace(tracer.trace_calls)
-# sys.setprofile(tracer.trace_c_calls)
+import sys
+
+from purity_analysis import Tracer
+
+tracer = Tracer(['Person', 'Boo'])
+sys.settrace(tracer.trace_calls)
+sys.setprofile(tracer.trace_c_calls)
+
+
+# import ctracer
+# ctracer.start()
 
 class Person:
     def __init__(self):
@@ -42,5 +49,8 @@ def main():
 
 
 main()
-# sys.settrace(None)
-# sys.setprofile(None)
+# ctracer.stop()
+
+sys.settrace(None)
+sys.setprofile(None)
+tracer.log_annotations(__file__)

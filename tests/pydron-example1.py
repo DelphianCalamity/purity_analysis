@@ -2,7 +2,7 @@
 import sys
 import time
 
-from bytecodes_analysis.tracer import Tracer
+from purity_analysis import Tracer
 
 tracer = Tracer([])
 sys.settrace(tracer.trace_calls)
