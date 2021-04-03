@@ -7,3 +7,4 @@ tests/*.annotations
 ctracer.cpython*.so
 build
 ctracer.egg-info
+*.json

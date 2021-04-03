@@ -1,11 +1,12 @@
 import ctypes
 import dis
 import gc
-import pprint as pp
 from collections import defaultdict
 from types import ModuleType
 
 from termcolor import colored
+
+from printers import printer, pprinter
 
 
 class FuncType:
@@ -60,38 +61,39 @@ def value_by_key_globals_or_locals(frame, var):
         var_ = frame.f_globals[var]
         var_address = hex(id(var_))
     else:
-        print("\n\n\n~~~Bug~~~!\n\n")
+        printer("\n\n\n~~~Bug~~~!\n\n")
         # exit(1)
     return var_address
 
 
 def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids):
+    return
     gc.collect()
     referrers = gc.get_referrers(ctypes.cast(int(obj_address, 0), ctypes.py_object).value)
     ref_ids.append(hex(id(referrers)))
     i = 0
     for ref in referrers:
 
-        print("\n\n\n\n\n\n\n\n\n\n", 'len refs', colored(len(referrers) - i, "green"))
+        printer("\n\n\n\n\n\n\n\n\n\n", 'len refs', colored(len(referrers) - i, "green"))
         i += 1
         ref_id = hex(id(ref))
 
         if ref_id in ref_ids or ref_id in frame_ids:
-            print("Continue")
+            printer("Continue")
             continue
 
         ref_ids.append(ref_id)
-        print(colored("REF-ID", "yellow"), hex(id(ref)), type(ref))
+        printer(colored("REF-ID", "yellow"), hex(id(ref)), type(ref))
         # if isinstance(ref, dict):
-        #     pp.pprint(ref.keys())
+        #     pp.pprinter(ref.keys())
         # else:
-        #     pp.pprint(ref)
+        #     pp.pprinter(ref)
         # Direct Reference - base case
         if ref_id in lmap:
             f = lmap[ref_id]
-            print(colored("Found in L-map", "red"))
-            pp.pprint(lmap[ref_id])
-            # print("Locals", f.f_locals)
+            printer(colored("Found in L-map", "red"))
+            pprinter(lmap[ref_id])
+            # printer("Locals", f.f_locals)
             if isinstance(f, ModuleType):
                 locals_ = vars(f)
             else:
@@ -102,13 +104,13 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids):
             else:
                 named_refs[hex(id(f))] = [f, keys]
 
-            print(colored("Named Referrers", "red"))
+            printer(colored("Named Referrers", "red"))
             for r in named_refs.values():
                 if isinstance(r[0], ModuleType):
                     func_name = str(r[0])
                 else:
                     func_name = r[0].f_code.co_name
-                print("     ", colored(func_name, "green"), colored(r[1], "blue"))
+                printer("     ", colored(func_name, "green"), colored(r[1], "blue"))
 
         # Indirect reference - recursive case
         # trace back indirect referrers till we reach locals
@@ -123,37 +125,37 @@ def print_frame(frame, event, arg):
     co = frame.f_code
     func_name = co.co_name
 
-    print(colored("\n\n##############################", "yellow"))
-    print("\n\nFrame: ", frame)
-    print("Event: ", event)
-    print("Arg: ", arg)
-    print("-------Frame code object------ ", co)
-    # print("CodeObject argcount: ", co.co_argcount)
+    printer(colored("\n\n##############################", "yellow"))
+    printer("\n\nFrame: ", frame)
+    printer("Event: ", event)
+    printer("Arg: ", arg)
+    printer("-------Frame code object------ ", co)
+    # printer("CodeObject argcount: ", co.co_argcount)
 
-    print(colored("CodeObject nlocals: ", "red"), co.co_nlocals)
-    print(colored("CodeObject varnames: ", "red"), co.co_varnames)
-    print(colored("CodeObject cellvars: ", "red"), co.co_cellvars)
-    print(colored("CodeObject freevars: ", "red"), co.co_freevars)
-    print(colored("CodeObject globals: ", "red"), co.co_names)
-    print("CodeObject bytecodes: ", dis.disco(co))
+    printer(colored("CodeObject nlocals: ", "red"), co.co_nlocals)
+    printer(colored("CodeObject varnames: ", "red"), co.co_varnames)
+    printer(colored("CodeObject cellvars: ", "red"), co.co_cellvars)
+    printer(colored("CodeObject freevars: ", "red"), co.co_freevars)
+    printer(colored("CodeObject globals: ", "red"), co.co_names)
+    #printer("CodeObject bytecodes: ", dis.disco(co))
     f_locals = frame.f_locals
     f_globals = frame.f_globals
 
     func_line_no = frame.f_lineno
     func_filename = co.co_filename
     caller = frame.f_back
-    print(caller)
+    printer(caller)
     if caller is not None:
         caller_line_no = caller.f_lineno
         caller_filename = caller.f_code.co_filename
     else:
         caller_line_no = None
         caller_filename = None
-    print(colored('Calling: \n func-name: %s\n,  on line: %s, of file: %s from line: %s, of file: %s' % \
+    printer(colored('Calling: \n func-name: %s\n,  on line: %s, of file: %s from line: %s, of file: %s' % \
                   (func_name, func_line_no, func_filename,
                    caller_line_no, caller_filename), "green"))
     # frame.f_back.f_code.f_lineo
-    # print(colored("Frame flocals: ", "yellow"))
-    # print(colored(f_locals.keys(), "blue"))
-    # print(colored("\nFrame fglob: ", "yellow"))
-    # print(colored(f_globals.keys(), "blue"))
+    # printer(colored("Frame flocals: ", "yellow"))
+    # printer(colored(f_locals.keys(), "blue"))
+    # printer(colored("\nFrame fglob: ", "yellow"))
+    # printer(colored(f_globals.keys(), "blue"))
