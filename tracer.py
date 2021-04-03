@@ -1,10 +1,11 @@
+import dis
 import json
 import sys
 import traceback
 from itertools import islice
 
 import ctracer
-from purity_analysis.utils import *
+from utils import *
 
 
 def get_instruction(frame, index):

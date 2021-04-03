@@ -26,7 +26,7 @@ class BytecodesAnalysis:
             self.old_code = fp.read()
             new_code = f"""\
 import sys
-from bytecodes_analysis.tracer import Tracer
+from tracer import Tracer
 tracer = Tracer({ignore})
 sys.settrace(tracer.trace_calls)
 sys.setprofile(tracer.trace_c_calls)
@@ -53,9 +53,9 @@ tracer.log_annotations(__file__)
 def analyze(source_input, ignore=None):
     ignore = [] if ignore is None else ignore
     app = BytecodesAnalysis(source_input)
-    # app.inject_tracing_code(ignore)
+    app.inject_tracing_code(ignore)
     app.execute()
-    with open(app.source_path + ".annotations") as json_file:
+    with open(app.source_path + ".json") as json_file:
         annotations = json.load(json_file)
     app.finalize()
 
