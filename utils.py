@@ -97,10 +97,10 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids):
             else:
                 locals_ = f.f_locals
             keys = keys_by_value_locals(locals_, obj_address)
-            if id(f) in named_refs:
-                named_refs[id(f)][1] += keys
+            if hex(id(f)) in named_refs:
+                named_refs[hex(id(f))][1] += keys
             else:
-                named_refs[id(f)] = [f, keys]
+                named_refs[hex(id(f))] = [f, keys]
 
             print(colored("Named Referrers", "red"))
             for r in named_refs.values():
