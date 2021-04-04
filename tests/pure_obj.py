@@ -1,7 +1,6 @@
 import sys
 
 from purity_analysis import Tracer
-
 tracer = Tracer(['Person'])
 sys.settrace(tracer.trace_calls)
 sys.setprofile(tracer.trace_c_calls)

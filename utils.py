@@ -3,7 +3,7 @@ import dis
 import gc
 import pprint as pp
 from collections import defaultdict
-from types import ModuleType
+from types import ModuleType, FrameType
 
 from termcolor import colored
 
@@ -41,6 +41,7 @@ class FunctionInfo:
         self.pure = True
         # nonlocal vars only
         self.mutated_objects = defaultdict(set)
+        self.other_mutated_objects = defaultdict(set)
 
 
 def keys_by_value_locals(locals, value):
@@ -78,6 +79,9 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids):
 
         if ref_id in ref_ids or ref_id in frame_ids:
             print("Continue")
+            continue
+        if isinstance(ref, FrameType):
+            print("Continue2")
             continue
 
         ref_ids.append(ref_id)

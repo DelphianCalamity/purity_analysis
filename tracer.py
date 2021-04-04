@@ -4,6 +4,7 @@ import traceback
 from itertools import islice
 
 import ctracer
+
 from purity_analysis.utils import *
 
 
@@ -20,7 +21,6 @@ class Tracer:
         self.lmap = {}
         self.frame_ids = set()
         self.init = True
-
         # with open("bytecodes_analysis/c_function_annotations.json") as json_file:
         #     self.native_annotations = json.load(json_file)
 
@@ -47,7 +47,6 @@ class Tracer:
             print(colored(traceback.format_exc(), "red"))
 
     def trace_bytecodes(self, frame, event, arg):
-
         try:
             if event != "opcode":
                 return
@@ -100,6 +99,7 @@ class Tracer:
                 mutated_obj_address = hex(id(tos))
                 # print("fdsfsdfsdfdsfsdfa", tos)
                 del tos
+
                 if mutated_obj_address == None:
                     print(colored("\n\nCouldn't find object; Ignoring current 'STORE_ATTR'\n\n", "red"))
                     return
@@ -117,18 +117,40 @@ class Tracer:
                         func_name = f.f_code.co_name
                     print("     ", colored(func_name, "green"), colored(keys, "blue"))
 
+                named_refs2 = {}
                 caller = frame
                 while caller is not None and caller.f_code.co_name != FuncType.BASE:
-                    # print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
+                    frame_id = hex(id(caller))
+                    if frame_id in named_refs.keys():
+                        named_refs2[frame_id] = named_refs[frame_id]
+                        named_refs.pop(frame_id)
+                    if len(named_refs) == 0:
+                        break
+                    caller = caller.f_back
+                else:
+                    # import inspect
+                    # for x in inspect.getouterframes(frame):
+                    #     print(x, file=sys.stderr)
+                    # print('>>>', file=sys.stderr)
+                    # for f, vars in named_refs.values():
+                    #     if isinstance(f, FrameType):
+                    #         for x in inspect.getouterframes(f):
+                    #             print(x, file=sys.stderr)
+                    #         exit(0)
+                    print('Continue3')
+                    frame_id = hex(id(frame))
+                    self.functions_visited[frame_id].pure = False
+                    for f, vars in named_refs.values():
+                        self.functions_visited[frame_id].other_mutated_objects[str(f)].update(vars)
+
+                named_refs = named_refs2
+                caller = frame
+                while caller is not None and caller.f_code.co_name != FuncType.BASE:
                     frame_id = hex(id(caller))
                     if frame_id in named_refs.keys():
                         named_refs.pop(frame_id)
                     if len(named_refs) == 0:
-                        return
-                    # print(colored("Refs Map", "red"))
-                    # for r in ref_map:
-                    #     print("     ", colored(r, "green"), colored(ref_map[r], "blue"))
-
+                        break
                     self.functions_visited[frame_id].pure = False
                     for f, vars in named_refs.values():
                         self.functions_visited[frame_id].mutated_objects[str(f)].update(vars)
@@ -154,18 +176,11 @@ class Tracer:
                 while caller is not None:
                     self.lmap[hex(id(caller.f_locals))] = caller
                     caller = caller.f_back
-                # return
-            # {FuncType.CONSTRUCTOR,
-            # or func_name == FuncType.CONSTRUCTOR or
-            # if func_name == FuncType.BASE or \
-            #         func_name in self.ignore:
-            #     return
-            # time.sleep(2)
             if event == EventType.CALL:
                 print_frame(frame, event, arg)
                 self.lmap[hex(id(frame.f_locals))] = frame
                 self.frame_ids.add(hex(id(frame)))
-                print(colored("\n\nInstert", "red"), self.frame_ids)
+                print(colored("\n\nInsert", "red"), self.frame_ids)
 
                 if hex(id(frame)) not in self.functions_visited:
                     self.functions_visited[hex(id(frame))] = FunctionInfo(frame)
@@ -228,6 +243,7 @@ class Tracer:
             output = []
             for function_info in self.functions_visited.values():
                 mutated_objects = {k: list(v) for k, v in function_info.mutated_objects.items()}
+                other_mutated_objects = {k: list(v) for k, v in function_info.other_mutated_objects.items()}
                 output.append({
                     "func_name": function_info.func_name,
                     "func_line_no": function_info.func_line_no,
@@ -236,7 +252,8 @@ class Tracer:
                     "pfunc_line_no": function_info.pfunc_line_no,
                     "pfunc_filename": function_info.pfunc_filename,
                     "pure": function_info.pure,
-                    "mutated_objects": mutated_objects
+                    "mutated_objects": mutated_objects,
+                    "other_mutated_objects": other_mutated_objects
                 })
             with open(filename + ".json", 'w') as w:
                 r = json.dumps(output, indent=4)
