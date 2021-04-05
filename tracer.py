@@ -10,7 +10,7 @@ from purity_analysis.utils import *
 
 def get_instruction(frame, index):
     instructions = dis.get_instructions(frame.f_code)
-    return next(islice(instructions, int(index / 2), None))
+    return next(islice(instructions, index // 2, None))
 
 
 class Tracer:
@@ -24,10 +24,6 @@ class Tracer:
         # with open("bytecodes_analysis/c_function_annotations.json") as json_file:
         #     self.native_annotations = json.load(json_file)
 
-    def _get_instruction(self, frame, index):
-        instructions = dis.get_instructions(frame.f_code)
-        return next(islice(instructions, int(index / 2), None))
-
     def generic_tracing(self, frame, event, arg):
         try:
             print(colored("!!!!!", "green"),
@@ -37,9 +33,9 @@ class Tracer:
             caller = frame
             # while caller is not None:
             #     print(colored("\nFrame", "red"), caller)
-            print(colored("\nLocals", "red"), caller.f_locals.keys(), hex(id(caller.f_locals)))
-            print(colored("\nGlobals", "red"), caller.f_globals.keys(), hex(id(caller.f_globals)))
-        #     self.lmap[hex(id(caller.f_locals))] = caller
+            print(colored("\nLocals", "red"), caller.f_locals.keys(), id(caller.f_locals))
+            print(colored("\nGlobals", "red"), caller.f_globals.keys(), id(caller.f_globals))
+        #     self.lmap[id(caller.f_locals)] = caller
         #     caller = caller.f_back
         # pp.pprint(self.lmap)
         except:
@@ -52,17 +48,17 @@ class Tracer:
                 return
 
             # print("Event:", event, "function: ", frame.f_code.co_name, "arg:", arg)
-            i = self._get_instruction(frame, frame.f_lasti)
+            i = get_instruction(frame, frame.f_lasti)
             print(i)
             opname = i.opname
             var = i.argval
             if opname == "RETURN_VALUE":
                 print(colored("\n\n\nDELETING FROM LMAP", "green"), frame)
-                self.lmap.pop(hex(id(frame.f_locals)))
-                self.frame_ids.remove(hex(id(frame)))
+                self.lmap.pop(id(frame.f_locals))
+                self.frame_ids.remove(id(frame))
 
             # print("\ncaller", frame.f_code.co_name, "\nLocals", frame.f_locals, "\nGlobals", frame.f_globals)
-            if opname in {'STORE_GLOBAL', 'STORE_NAME'}:
+            if opname in {'STORE_GLOBAL'}:
                 # Trace var all the way back to the initial frame; stop if it is found in a frame's locals
                 # _, var_address = self.find_in_globals_or_locals(frame, var)
                 caller = frame
@@ -71,7 +67,7 @@ class Tracer:
                     if var in caller.f_locals:
                         break
                     else:
-                        frame_id = hex(id(caller))
+                        frame_id = id(caller)
                         self.functions_visited[frame_id].pure = False
                         self.functions_visited[frame_id].mutated_objects['todo'].add(var)
                     caller = caller.f_back
@@ -83,21 +79,16 @@ class Tracer:
                     if var in caller.f_code.co_cellvars:  # Found the owner
                         break
                     else:
-                        frame_id = hex(id(caller))
+                        frame_id = id(caller)
                         self.functions_visited[frame_id].pure = False
                         self.functions_visited[frame_id].mutated_objects['todo'].add(var)
                     caller = caller.f_back
 
             elif opname in {"STORE_ATTR", "STORE_SUBSCR"}:
-                # Get the referrer to the object that we write from the previous bytecode
-                # last_i = frame.f_lasti - 1 if opname == "STORE_ATTR" else frame.f_lasti - 4
-                # prev_i = self._get_instruction(frame, last_i)
-                # print(colored(prev_i, "yellow"))
-                # mutated_obj_address = value_by_key_globals_or_locals(frame, prev_i.argval)
+                # Get the referrer to the object that we write
                 i = 1 if opname == "STORE_ATTR" else 2
                 tos = ctracer.tos(frame, i)
-                mutated_obj_address = hex(id(tos))
-                # print("fdsfsdfsdfdsfsdfa", tos)
+                mutated_obj_address = id(tos)
                 del tos
 
                 if mutated_obj_address == None:
@@ -120,7 +111,7 @@ class Tracer:
                 named_refs2 = {}
                 caller = frame
                 while caller is not None and caller.f_code.co_name != FuncType.BASE:
-                    frame_id = hex(id(caller))
+                    frame_id = id(caller)
                     if frame_id in named_refs.keys():
                         named_refs2[frame_id] = named_refs[frame_id]
                         named_refs.pop(frame_id)
@@ -138,7 +129,7 @@ class Tracer:
                     #             print(x, file=sys.stderr)
                     #         exit(0)
                     print('Continue3')
-                    frame_id = hex(id(frame))
+                    frame_id = id(frame)
                     self.functions_visited[frame_id].pure = False
                     for f, vars in named_refs.values():
                         self.functions_visited[frame_id].other_mutated_objects[str(f)].update(vars)
@@ -146,7 +137,7 @@ class Tracer:
                 named_refs = named_refs2
                 caller = frame
                 while caller is not None and caller.f_code.co_name != FuncType.BASE:
-                    frame_id = hex(id(caller))
+                    frame_id = id(caller)
                     if frame_id in named_refs.keys():
                         named_refs.pop(frame_id)
                     if len(named_refs) == 0:
@@ -170,20 +161,20 @@ class Tracer:
                 self.init = False
                 # Add the locals of all the imported modules todo: insert locals from modules imported at a later stage as well
                 for module in sys.modules.values():
-                    self.lmap[hex(id(vars(module)))] = module
+                    self.lmap[id(vars(module))] = module
 
                 caller = frame
                 while caller is not None:
-                    self.lmap[hex(id(caller.f_locals))] = caller
+                    self.lmap[id(caller.f_locals)] = caller
                     caller = caller.f_back
             if event == EventType.CALL:
                 print_frame(frame, event, arg)
-                self.lmap[hex(id(frame.f_locals))] = frame
-                self.frame_ids.add(hex(id(frame)))
+                self.lmap[id(frame.f_locals)] = frame
+                self.frame_ids.add(id(frame))
                 print(colored("\n\nInsert", "red"), self.frame_ids)
 
-                if hex(id(frame)) not in self.functions_visited:
-                    self.functions_visited[hex(id(frame))] = FunctionInfo(frame)
+                if id(frame) not in self.functions_visited:
+                    self.functions_visited[id(frame)] = FunctionInfo(frame)
                 return self.trace_bytecodes
 
         except:
@@ -195,7 +186,7 @@ class Tracer:
 
         # elif event == EventType.RETURN:
         #     print(colored("DELETING FROM LMAP", "green"), frame)
-        #     self.lmap.pop(hex(id(frame)))
+        #     self.lmap.pop(id(frame))
 
     def trace_c_calls(self, frame, event, arg):
         try:
@@ -203,11 +194,11 @@ class Tracer:
                 self.init = False
                 # Add the locals of all the imported modules todo: insert locals from modules imported at a later stage as well
                 for module in sys.modules.values():
-                    self.lmap[hex(id(vars(module)))] = module
+                    self.lmap[id(vars(module))] = module
 
                 caller = frame
                 while caller is not None:
-                    self.lmap[hex(id(caller.f_locals))] = caller
+                    self.lmap[id(caller.f_locals)] = caller
                     pp.pprint(self.lmap)
                     # print(colored("\nFrame", "red"), caller)
                     # print(colored("\nLocals", "red"), caller.f_locals)
@@ -224,7 +215,7 @@ class Tracer:
                 #         return
                 # caller = frame
                 # while caller is not None and caller.f_code.co_name != FuncType.BASE:
-                #     frame_id = hex(id(caller))
+                #     frame_id = id(caller)
                 #     print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
                 #     if frame_id in self.functions_visited:
                 #         self.functions_visited[frame_id].pure = False

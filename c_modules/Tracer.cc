@@ -73,7 +73,6 @@ void Tracer::print_refs_map(std::unordered_map<PyFrameObject *, std::unordered_s
 
 unordered_set<string> keys_by_value_locals(PyObject *obj, PyObject *locals) {
     unordered_set<string> res;
-
     PyObject *key, *value;
     Py_ssize_t pos = 0;
     while (PyDict_Next(locals, &pos, &key, &value)) {
