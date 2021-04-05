@@ -225,11 +225,11 @@ class Tracer:
 
     def log_annotations(self, filename):
         try:
-            output = []
-            for function_info in self.functions_visited.values():
+            output = {}
+            for key, function_info in self.functions_visited.items():
                 mutated_objects = {k: list(v) for k, v in function_info.mutated_objects.items()}
                 other_mutated_objects = {k: list(v) for k, v in function_info.other_mutated_objects.items()}
-                output.append({
+                output[f'({function_info.func_name} : {key.split()[1]}'] = {
                     "func_name": function_info.func_name,
                     "func_line_no": function_info.func_line_no,
                     "func_filename": function_info.func_filename,
@@ -239,7 +239,7 @@ class Tracer:
                     "pure": function_info.pure,
                     "mutated_objects": mutated_objects,
                     "other_mutated_objects": other_mutated_objects
-                })
+                }
             with open(filename + ".json", 'w') as w:
                 r = json.dumps(output, indent=4)
                 w.write(r)
