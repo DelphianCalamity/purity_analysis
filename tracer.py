@@ -65,11 +65,12 @@ class Tracer:
                 while caller is not None and caller.f_code.co_name != FuncType.BASE:
                     # print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
                     if var in caller.f_locals:
+
                         break
                     else:
-                        frame_id = id(caller)
-                        self.functions_visited[frame_id].pure = False
-                        self.functions_visited[frame_id].mutated_objects['todo'].add(var)
+                        key = str((id(caller), caller.f_back.f_lineno))
+                        self.functions_visited[key].pure = False
+                        self.functions_visited[key].mutated_objects['todo'].add(var)
                     caller = caller.f_back
 
             elif opname == 'STORE_DEREF':
@@ -79,9 +80,9 @@ class Tracer:
                     if var in caller.f_code.co_cellvars:  # Found the owner
                         break
                     else:
-                        frame_id = id(caller)
-                        self.functions_visited[frame_id].pure = False
-                        self.functions_visited[frame_id].mutated_objects['todo'].add(var)
+                        key = str((id(caller), caller.f_back.f_lineno))
+                        self.functions_visited[key].pure = False
+                        self.functions_visited[key].mutated_objects['todo'].add(var)
                     caller = caller.f_back
 
             elif opname in {"STORE_ATTR", "STORE_SUBSCR"}:
@@ -119,20 +120,10 @@ class Tracer:
                         break
                     caller = caller.f_back
                 else:
-                    # import inspect
-                    # for x in inspect.getouterframes(frame):
-                    #     print(x, file=sys.stderr)
-                    # print('>>>', file=sys.stderr)
-                    # for f, vars in named_refs.values():
-                    #     if isinstance(f, FrameType):
-                    #         for x in inspect.getouterframes(f):
-                    #             print(x, file=sys.stderr)
-                    #         exit(0)
                     print('Continue3')
-                    frame_id = id(frame)
-                    self.functions_visited[frame_id].pure = False
+                    # self.functions_visited[frame_id].pure = False todo
                     for f, vars in named_refs.values():
-                        self.functions_visited[frame_id].other_mutated_objects[str(f)].update(vars)
+                        self.functions_visited[id(frame)].other_mutated_objects[str(f)].update(vars)
 
                 named_refs = named_refs2
                 caller = frame
@@ -142,9 +133,10 @@ class Tracer:
                         named_refs.pop(frame_id)
                     if len(named_refs) == 0:
                         break
-                    self.functions_visited[frame_id].pure = False
+                    key = str((id(caller), caller.f_back.f_lineno))
+                    self.functions_visited[key].pure = False
                     for f, vars in named_refs.values():
-                        self.functions_visited[frame_id].mutated_objects[str(f)].update(vars)
+                        self.functions_visited[key].mutated_objects[str((f.f_code.co_filename, f.f_code.co_name, f.f_code.co_firstlineno))].update(vars)
                     caller = caller.f_back
         except:
             print(colored("\n\nTrace Bytecodes failed\n\n", "red"))
@@ -173,8 +165,10 @@ class Tracer:
                 self.frame_ids.add(id(frame))
                 print(colored("\n\nInsert", "red"), self.frame_ids)
 
-                if id(frame) not in self.functions_visited:
-                    self.functions_visited[id(frame)] = FunctionInfo(frame)
+                print("\n\n\n\n\n\nfsdfsda", frame.f_lineno)
+                key = str((id(frame), frame.f_back.f_lineno))
+                if key not in self.functions_visited:
+                    self.functions_visited[key] = FunctionInfo(frame)
                 return self.trace_bytecodes
 
         except:
