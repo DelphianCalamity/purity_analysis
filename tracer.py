@@ -111,7 +111,7 @@ class Tracer:
 
                 named_refs2 = {}
                 caller = frame
-                while caller is not None and caller.f_code.co_name != FuncType.BASE:
+                while caller is not None:
                     frame_id = id(caller)
                     if frame_id in named_refs.keys():
                         named_refs2[frame_id] = named_refs[frame_id]
@@ -122,8 +122,9 @@ class Tracer:
                 else:
                     print('Continue3')
                     # self.functions_visited[frame_id].pure = False todo
+                    key = str((id(frame), frame.f_back.f_lineno))
                     for f, vars in named_refs.values():
-                        self.functions_visited[id(frame)].other_mutated_objects[str(f)].update(vars)
+                        self.functions_visited[key].other_mutated_objects[str(f)].update(vars)
 
                 named_refs = named_refs2
                 caller = frame
@@ -165,7 +166,6 @@ class Tracer:
                 self.frame_ids.add(id(frame))
                 print(colored("\n\nInsert", "red"), self.frame_ids)
 
-                print("\n\n\n\n\n\nfsdfsda", frame.f_lineno)
                 key = str((id(frame), frame.f_back.f_lineno))
                 if key not in self.functions_visited:
                     self.functions_visited[key] = FunctionInfo(frame)
