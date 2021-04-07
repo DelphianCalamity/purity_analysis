@@ -65,7 +65,6 @@ class Tracer:
                 while caller is not None and caller.f_code.co_name != FuncType.BASE:
                     # print("\ncaller", caller.f_code.co_name, "\nLocals", caller.f_locals, "\nGlobals", caller.f_globals)
                     if var in caller.f_locals:
-
                         break
                     else:
                         key = str((id(caller), caller.f_back.f_lineno))
@@ -89,16 +88,16 @@ class Tracer:
                 # Get the referrer to the object that we write
                 i = 1 if opname == "STORE_ATTR" else 2
                 tos = ctracer.tos(frame, i)
-                mutated_obj_address = id(tos)
-                del tos
-
-                if mutated_obj_address == None:
+                if tos is None:
                     print(colored("\n\nCouldn't find object; Ignoring current 'STORE_ATTR'\n\n", "red"))
                     return
+                mutated_obj_address = id(tos)
+                del tos
 
                 print(colored("Starting..\n", "red"))
                 ref_ids = []
                 named_refs = {}
+                gc.collect()
                 find_referrers(self.lmap, mutated_obj_address, named_refs, ref_ids, self.frame_ids)
 
                 print(colored("Refs Map", "red"))

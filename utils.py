@@ -35,9 +35,10 @@ class FunctionInfo:
 
 
 def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids):
-    gc.collect()
+    # gc.collect()
     referrers = gc.get_referrers(ctypes.cast(obj_address, ctypes.py_object).value)
     ref_ids.append(id(referrers))
+    ref_ids.append(id(lmap))
     i = 0
     for ref in referrers:
         print("\n\n\n\n\n\n\n\n\n\n", 'len refs', colored(len(referrers) - i, "green"))
