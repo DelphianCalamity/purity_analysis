@@ -12,15 +12,19 @@ def get_instruction(frame, index):
     instructions = dis.get_instructions(frame.f_code)
     return next(islice(instructions, index // 2, None))
 
-
 class Tracer:
 
-    def __init__(self, ignore=None):
+    def __init__(self, filename, ignore=None):
         self.functions_visited = {}
         self.ignore = [] if ignore is None else ignore
         self.lmap = {}
         self.frame_ids = set()
         self.init = True
+        self.enabled_tracing = False
+        self.filename = filename
+        self.mapping_file = "mapping_file"
+        self.summaries_db = "summaries"
+        self.mapping = {}
         # with open("bytecodes_analysis/c_function_annotations.json") as json_file:
         #     self.native_annotations = json.load(json_file)
 
@@ -67,9 +71,12 @@ class Tracer:
                     if var in caller.f_locals:
                         break
                     else:
-                        key = str((id(caller), caller.f_back.f_lineno))
-                        self.functions_visited[key].pure = False
-                        self.functions_visited[key].mutated_objects['todo'].add(var)
+                        # key = str((id(caller), caller.f_back.f_lineno))
+                        # if key in self.functions_visited:
+                        if caller.f_back.f_code.co_filename == self.filename:
+                            key = f'({caller.f_code.co_name} : {caller.f_code.co_firstlineno} : {caller.f_code.co_filename}'
+                            self.functions_visited[key].pure = False
+                            self.functions_visited[key].mutated_objects['todo'].add(var)
                     caller = caller.f_back
 
             elif opname == 'STORE_DEREF':
@@ -79,9 +86,12 @@ class Tracer:
                     if var in caller.f_code.co_cellvars:  # Found the owner
                         break
                     else:
-                        key = str((id(caller), caller.f_back.f_lineno))
-                        self.functions_visited[key].pure = False
-                        self.functions_visited[key].mutated_objects['todo'].add(var)
+                        # key = str((id(caller), caller.f_back.f_lineno))
+                        # if key in self.functions_visited:
+                        if caller.f_back.f_code.co_filename == self.filename:
+                            key = f'({caller.f_code.co_name} : {caller.f_code.co_firstlineno} : {caller.f_code.co_filename}'
+                            self.functions_visited[key].pure = False
+                            self.functions_visited[key].mutated_objects['todo'].add(var)
                     caller = caller.f_back
 
             elif opname in {"STORE_ATTR", "STORE_SUBSCR"}:
@@ -121,9 +131,11 @@ class Tracer:
                 else:
                     print('Continue3')
                     # self.functions_visited[frame_id].pure = False todo
-                    key = str((id(frame), frame.f_back.f_lineno))
-                    for f, vars in named_refs.values():
-                        self.functions_visited[key].other_mutated_objects[str(f)].update(vars)
+                    # key = str((id(frame), frame.f_back.f_lineno))
+                    key = f'({frame.f_code.co_name} : {frame.f_code.co_firstlineno} : {frame.f_code.co_filename}'
+                    if frame.f_back.f_code.co_filename == self.filename:
+                        for f, vars in named_refs.values():
+                            self.functions_visited[key].other_mutated_objects[str(f)].update(vars)
 
                 named_refs = named_refs2
                 caller = frame
@@ -133,46 +145,71 @@ class Tracer:
                         named_refs.pop(frame_id)
                     if len(named_refs) == 0:
                         break
-                    key = str((id(caller), caller.f_back.f_lineno))
-                    self.functions_visited[key].pure = False
-                    for f, vars in named_refs.values():
-                        self.functions_visited[key].mutated_objects[str((f.f_code.co_filename, f.f_code.co_name, f.f_code.co_firstlineno))].update(vars)
+                    # key = str((id(caller), caller.f_back.f_lineno))
+                    # if key in self.functions_visited:
+                    if caller.f_back.f_code.co_filename == self.filename:
+                        key = f'({caller.f_code.co_name} : {caller.f_code.co_firstlineno} : {caller.f_code.co_filename}'
+                        self.functions_visited[key].pure = False
+                        for f, vars in named_refs.values():
+                            self.functions_visited[key].mutated_objects[str((f.f_code.co_filename, f.f_code.co_name, f.f_code.co_firstlineno))].update(vars)
                     caller = caller.f_back
         except:
-            print(colored("\n\nTrace Bytecodes failed\n\n", "red"))
-            print(colored(traceback.format_exc(), "red"))
+            print(colored("\n\nTrace Bytecodes failed\n\n", "red"), file=sys.stderr)
+            print(colored(traceback.format_exc(), "red"), file=sys.stderr)
             sys.settrace(None)
             sys.setprofile(None)
             exit(1)
 
     def trace_calls(self, frame, event, arg):
         try:
-            frame.f_trace_opcodes = True
-
             if self.init:
                 self.init = False
                 # Add the locals of all the imported modules todo: insert locals from modules imported at a later stage as well
                 for module in sys.modules.values():
                     self.lmap[id(vars(module))] = module
-
                 caller = frame
                 while caller is not None:
                     self.lmap[id(caller.f_locals)] = caller
                     caller = caller.f_back
+
+
             if event == EventType.CALL:
+                # print(frame.f_code.co_filename, self.filename)
+                # print(frame.f_back.f_code.co_filename, self.filename)
+                if frame.f_back.f_code.co_filename == self.filename:  # It is one of the functions I care about
+
+                    self.enabled_tracing = True
+                    call_site = f'{frame.f_back.f_code.co_filename} : {frame.f_back.f_lineno-6}' # -6 = lines injected for tracing
+                    definition_site = f'{frame.f_code.co_name} : {frame.f_code.co_firstlineno} : {frame.f_code.co_filename}'
+
+                    if call_site in self.mapping:
+                        self.mapping[call_site][len(self.mapping[call_site])] = definition_site
+                    else:
+                        self.mapping[call_site] = {0 : definition_site}
+
+                    with open(self.summaries_db + ".json", 'r') as summaries:
+                        fsummaries = json.load(summaries)
+                        if definition_site in fsummaries:
+                            self.enabled_tracing = False
+                        else:
+                            self.functions_visited[definition_site] = FunctionInfo(frame)
+                if not self.enabled_tracing:
+                    return
+
+                frame.f_trace_opcodes = True
                 print_frame(frame, event, arg)
                 self.lmap[id(frame.f_locals)] = frame
                 self.frame_ids.add(id(frame))
                 print(colored("\n\nInsert", "red"), self.frame_ids)
 
-                key = str((id(frame), frame.f_back.f_lineno))
-                if key not in self.functions_visited:
-                    self.functions_visited[key] = FunctionInfo(frame)
+                # key = str((id(frame), frame.f_back.f_lineno))
+                # if key not in self.functions_visited:
+                #     self.functions_visited[key] = FunctionInfo(frame)
                 return self.trace_bytecodes
 
         except:
-            print(colored("\n\nTrace Calls failed\n\n", "red"))
-            print(colored(traceback.format_exc(), "red"))
+            print(colored("\n\nTrace Calls failed\n\n", "red"), file=sys.stderr)
+            print(colored(traceback.format_exc(), "red"), file=sys.stderr)
             sys.settrace(None)
             sys.setprofile(None)
             exit(1)
@@ -244,6 +281,42 @@ class Tracer:
                 w.write(r)
             pp.pprint(output)
             return output
+        except:
+            print(colored("\n\nLog annotations\n\n", "red"))
+            print(colored(traceback.format_exc(), "red"))
+            exit(1)
+
+    def store_summaries_and_mapping(self):
+        try:
+            output = {}
+            for key, function_info in self.functions_visited.items():
+                mutated_objects = {k: list(v) for k, v in function_info.mutated_objects.items()}
+                other_mutated_objects = {k: list(v) for k, v in function_info.other_mutated_objects.items()}
+                output[key] = {
+                    "pure": function_info.pure,
+                    "mutated_objects": mutated_objects,
+                    "other_mutated_objects": other_mutated_objects
+                }
+
+            # Store new summaries
+            with open(self.summaries_db + ".json", 'r') as r:
+                fsummaries = json.load(r)
+
+            fsummaries.update(output)
+            with open(self.summaries_db + ".json", 'w') as w:
+                r = json.dumps(fsummaries, indent=4)
+                w.write(r)
+
+            # Store mapping file
+            with open(self.mapping_file + ".json", 'w') as w:
+                r = json.dumps(self.mapping, indent=4)
+                w.write(r)
+
+            pp.pprint(output)
+            pp.pprint(self.mapping)
+
+            return output
+
         except:
             print(colored("\n\nLog annotations\n\n", "red"))
             print(colored(traceback.format_exc(), "red"))

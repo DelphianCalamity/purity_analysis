@@ -2,6 +2,7 @@ import ctypes
 import dis
 import gc
 import pprint as pp
+import sys
 from collections import defaultdict
 from types import ModuleType, FrameType
 
@@ -56,6 +57,7 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids):
         print(colored("REF-ID", "yellow"), id(ref), type(ref))
         if ref_id in lmap:
             f = lmap[ref_id]
+
             print(colored("Found in L-map", "red"))
             pp.pprint(lmap[ref_id])
             if isinstance(f, ModuleType):

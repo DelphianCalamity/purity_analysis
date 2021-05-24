@@ -2,9 +2,9 @@ import sys
 
 from purity_analysis import Tracer
 
-tracer = Tracer(['Person', 'Boo'])
+tracer = Tracer(__file__)
 sys.settrace(tracer.trace_calls)
-sys.setprofile(tracer.trace_c_calls)
+# sys.setprofile(tracer.trace_c_calls)
 
 
 # import ctracer
@@ -17,10 +17,10 @@ class Person:
     def set_name(self, name):
         self.name = name
 
-
 # mutate obj prop indirectly
 def foo1(person):
     person.set_name('anna')
+    return 1
 
 
 class Boo:
@@ -45,12 +45,13 @@ def main():
     m = {}
     m['0'] = person
     m['1'] = 1
-    foo1(person)
+    foo1(person) + foo1(person)
 
 
 main()
 # ctracer.stop()
 
 sys.settrace(None)
-sys.setprofile(None)
-tracer.log_annotations(__file__)
+# sys.setprofile(None)
+# tracer.log_annotations(__file__)
+tracer.store_summaries_and_mapping()
