@@ -25,6 +25,8 @@ class Tracer:
         self.mapping_file = "mapping_file"
         self.summaries_db = "summaries"
         self.mapping = {}
+        # self.args = []
+        # self.argvalues = []
         # with open("bytecodes_analysis/c_function_annotations.json") as json_file:
         #     self.native_annotations = json.load(json_file)
 
@@ -60,6 +62,10 @@ class Tracer:
                 print(colored("\n\n\nDELETING FROM LMAP", "green"), frame)
                 self.lmap.pop(id(frame.f_locals))
                 self.frame_ids.remove(id(frame))
+            #
+            # if opname == "LOAD_METHOD":
+            #     tos = ctracer.tos(frame, 1)
+            #     obj_address = id(tos)
 
             # print("\ncaller", frame.f_code.co_name, "\nLocals", frame.f_locals, "\nGlobals", frame.f_globals)
             if opname in {'STORE_GLOBAL'}:
@@ -74,7 +80,7 @@ class Tracer:
                         # key = str((id(caller), caller.f_back.f_lineno))
                         # if key in self.functions_visited:
                         if caller.f_back.f_code.co_filename == self.filename:
-                            key = f'({caller.f_code.co_name} : {caller.f_code.co_firstlineno} : {caller.f_code.co_filename}'
+                            key = f'{caller.f_code.co_name} : {caller.f_code.co_firstlineno} : {caller.f_code.co_filename}'
                             self.functions_visited[key].pure = False
                             self.functions_visited[key].mutated_objects['todo'].add(var)
                     caller = caller.f_back
@@ -89,7 +95,7 @@ class Tracer:
                         # key = str((id(caller), caller.f_back.f_lineno))
                         # if key in self.functions_visited:
                         if caller.f_back.f_code.co_filename == self.filename:
-                            key = f'({caller.f_code.co_name} : {caller.f_code.co_firstlineno} : {caller.f_code.co_filename}'
+                            key = f'{caller.f_code.co_name} : {caller.f_code.co_firstlineno} : {caller.f_code.co_filename}'
                             self.functions_visited[key].pure = False
                             self.functions_visited[key].mutated_objects['todo'].add(var)
                     caller = caller.f_back
@@ -102,6 +108,10 @@ class Tracer:
                     print(colored("\n\nCouldn't find object; Ignoring current 'STORE_ATTR'\n\n", "red"))
                     return
                 mutated_obj_address = id(tos)
+                # print(colored("mutated obj id", "yellow"), hex(mutated_obj_address))
+                # for x in self.args:
+                #     print(colored("\t{}={}".format(x, self.argvalues[x]), "green"))
+
                 del tos
 
                 print(colored("Starting..\n", "red"))
@@ -132,7 +142,7 @@ class Tracer:
                     print('Continue3')
                     # self.functions_visited[frame_id].pure = False todo
                     # key = str((id(frame), frame.f_back.f_lineno))
-                    key = f'({frame.f_code.co_name} : {frame.f_code.co_firstlineno} : {frame.f_code.co_filename}'
+                    key = f'{frame.f_code.co_name} : {frame.f_code.co_firstlineno} : {frame.f_code.co_filename}'
                     if frame.f_back.f_code.co_filename == self.filename:
                         for f, vars in named_refs.values():
                             self.functions_visited[key].other_mutated_objects[str(f)].update(vars)
@@ -148,7 +158,7 @@ class Tracer:
                     # key = str((id(caller), caller.f_back.f_lineno))
                     # if key in self.functions_visited:
                     if caller.f_back.f_code.co_filename == self.filename:
-                        key = f'({caller.f_code.co_name} : {caller.f_code.co_firstlineno} : {caller.f_code.co_filename}'
+                        key = f'{caller.f_code.co_name} : {caller.f_code.co_firstlineno} : {caller.f_code.co_filename}'
                         self.functions_visited[key].pure = False
                         for f, vars in named_refs.values():
                             self.functions_visited[key].mutated_objects[str((f.f_code.co_filename, f.f_code.co_name, f.f_code.co_firstlineno))].update(vars)
@@ -176,8 +186,13 @@ class Tracer:
             if event == EventType.CALL:
                 # print(frame.f_code.co_filename, self.filename)
                 # print(frame.f_back.f_code.co_filename, self.filename)
+                # self.args = []
+                # self.argvalues = []
                 if frame.f_back.f_code.co_filename == self.filename:  # It is one of the functions I care about
 
+                    # self.args, _, _, self.argvalues = inspect.getargvalues(frame)
+                    # for i in (self.args if not self.args is None else []):
+                    #     print(colored("\t{}={}".format(i, self.argvalues[i]), "yellow"))
                     self.enabled_tracing = True
                     call_site = f'{frame.f_back.f_code.co_filename} : {frame.f_back.f_lineno-6}' # -6 = lines injected for tracing
                     definition_site = f'{frame.f_code.co_name} : {frame.f_code.co_firstlineno} : {frame.f_code.co_filename}'
