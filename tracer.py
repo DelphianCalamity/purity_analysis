@@ -25,8 +25,11 @@ class Tracer:
         self.mapping_file = "mapping_file"
         self.summaries_db = "summaries"
         self.mapping = {}
-        # self.args = []
-        # self.argvalues = []
+        self.args = {}
+        self.argvalues = {}
+        self.key = None
+        self.cache_ids = set()
+
         # with open("bytecodes_analysis/c_function_annotations.json") as json_file:
         #     self.native_annotations = json.load(json_file)
 
@@ -62,10 +65,6 @@ class Tracer:
                 print(colored("\n\n\nDELETING FROM LMAP", "green"), frame)
                 self.lmap.pop(id(frame.f_locals))
                 self.frame_ids.remove(id(frame))
-            #
-            # if opname == "LOAD_METHOD":
-            #     tos = ctracer.tos(frame, 1)
-            #     obj_address = id(tos)
 
             # print("\ncaller", frame.f_code.co_name, "\nLocals", frame.f_locals, "\nGlobals", frame.f_globals)
             if opname in {'STORE_GLOBAL'}:
@@ -108,17 +107,25 @@ class Tracer:
                     print(colored("\n\nCouldn't find object; Ignoring current 'STORE_ATTR'\n\n", "red"))
                     return
                 mutated_obj_address = id(tos)
+
                 # print(colored("mutated obj id", "yellow"), hex(mutated_obj_address))
                 # for x in self.args:
                 #     print(colored("\t{}={}".format(x, self.argvalues[x]), "green"))
 
                 del tos
 
+                if mutated_obj_address in self.cache_ids:
+                    return
+                else:
+                    self.cache_ids.add(mutated_obj_address)
+
                 print(colored("Starting..\n", "red"))
                 ref_ids = []
                 named_refs = {}
                 gc.collect()
-                find_referrers(self.lmap, mutated_obj_address, named_refs, ref_ids, self.frame_ids)
+                print(self.args); print(self.argvalues)
+                # exit(0)
+                find_referrers(self.lmap, mutated_obj_address, named_refs, ref_ids, self.frame_ids, self.key, self.args, self.argvalues, self.functions_visited)
 
                 print(colored("Refs Map", "red"))
                 for f, keys in named_refs.values():
@@ -186,16 +193,21 @@ class Tracer:
             if event == EventType.CALL:
                 # print(frame.f_code.co_filename, self.filename)
                 # print(frame.f_back.f_code.co_filename, self.filename)
-                # self.args = []
-                # self.argvalues = []
                 if frame.f_back.f_code.co_filename == self.filename:  # It is one of the functions I care about
+                    self.cache_ids = set()
 
-                    # self.args, _, _, self.argvalues = inspect.getargvalues(frame)
-                    # for i in (self.args if not self.args is None else []):
-                    #     print(colored("\t{}={}".format(i, self.argvalues[i]), "yellow"))
+                    self.args, _, _, argvalues = inspect.getargvalues(frame)
+                    if self.args is not None:
+                        for i in self.args:
+                            print(colored("\t{}={}".format(i, argvalues[i]), "yellow"))
+                            self.argvalues[i] = id(argvalues[i])
+                            print(colored("\t{}={}".format(i, self.argvalues[i]), "blue"))
+                        # exit(0)
+
                     self.enabled_tracing = True
                     call_site = f'{frame.f_back.f_code.co_filename} : {frame.f_back.f_lineno-6}' # -6 = lines injected for tracing
                     definition_site = f'{frame.f_code.co_name} : {frame.f_code.co_firstlineno} : {frame.f_code.co_filename}'
+                    self.key = definition_site
 
                     if call_site in self.mapping:
                         self.mapping[call_site][len(self.mapping[call_site])] = definition_site
@@ -307,8 +319,11 @@ class Tracer:
             for key, function_info in self.functions_visited.items():
                 mutated_objects = {k: list(v) for k, v in function_info.mutated_objects.items()}
                 other_mutated_objects = {k: list(v) for k, v in function_info.other_mutated_objects.items()}
+                mutated_args = {k: list(v) for k, v in function_info.mutated_args.items()}
+
                 output[key] = {
                     "pure": function_info.pure,
+                    "mutated_args": mutated_args,
                     "mutated_objects": mutated_objects,
                     "other_mutated_objects": other_mutated_objects
                 }

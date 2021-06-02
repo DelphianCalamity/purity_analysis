@@ -5,7 +5,7 @@ import pprint as pp
 import sys
 from collections import defaultdict
 from types import ModuleType, FrameType
-
+import inspect
 from termcolor import colored
 
 
@@ -31,17 +31,29 @@ class FunctionInfo:
         self.pfunc_filename = frame.f_code.co_filename
         self.pure = True
         # nonlocal vars only
+        self.args = None
+        self.argvalues = None
+        self.mutated_args = defaultdict(set)
         self.mutated_objects = defaultdict(set)
         self.other_mutated_objects = defaultdict(set)
 
 
-def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids):
+def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids, key, args, argvalues, functions_visited):
     # gc.collect()
+    for i, x in enumerate(args):
+        # exit(0)
+        if argvalues[x] == obj_address:
+            print(colored("\t{}={}".format(x, argvalues[x]), "yellow"))
+            functions_visited[key].mutated_args[i].add(x)
+
+
     referrers = gc.get_referrers(ctypes.cast(obj_address, ctypes.py_object).value)
     ref_ids.append(id(referrers))
     ref_ids.append(id(lmap))
     i = 0
+
     for ref in referrers:
+        # print(colored(ref, "yellow"))
         print("\n\n\n\n\n\n\n\n\n\n", 'len refs', colored(len(referrers) - i, "green"))
         i += 1
         ref_id = id(ref)
@@ -52,6 +64,7 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids):
         if isinstance(ref, FrameType):
             print("Continue2")
             continue
+
 
         ref_ids.append(ref_id)
         print(colored("REF-ID", "yellow"), id(ref), type(ref))
@@ -81,7 +94,7 @@ def find_referrers(lmap, obj_address, named_refs, ref_ids, frame_ids):
         # Indirect reference - recursive case
         # trace back indirect referrers till we reach locals
         else:
-            find_referrers(lmap, ref_id, named_refs, ref_ids, frame_ids)
+            find_referrers(lmap, ref_id, named_refs, ref_ids, frame_ids, key, args, argvalues, functions_visited)
 
         del ref_ids[-1]
     del ref_ids[-1]
@@ -98,12 +111,18 @@ def print_frame(frame, event, arg):
     print("-------Frame code object------ ", co)
 
     print(colored("CodeObject nlocals: ", "red"), co.co_nlocals)
+    print(colored("CodeObject nargs: ", "red"), co.co_argcount)
+    # args, _, _, values = inspect.getargvalues(frame)
+    # for i in (args if not args is None else []):
+    #     print("\t{}={}".format(i, values[i]))
+
     print(colored("CodeObject varnames: ", "red"), co.co_varnames)
     print(colored("CodeObject cellvars: ", "red"), co.co_cellvars)
     print(colored("CodeObject freevars: ", "red"), co.co_freevars)
     print(colored("CodeObject globals: ", "red"), co.co_names)
     print("CodeObject bytecodes: ", dis.disco(co))
 
+    # print(frame.f_locals)
     func_line_no = frame.f_lineno
     func_filename = co.co_filename
     caller = frame.f_back
